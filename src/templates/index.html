@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% import "bootstrap/wtf.html" as wtf %}
+{{ form.csrf_token }}
+
+{% block page_content %}
+<div class="page-header">
+    <h1>Elastic"Search"</h1>
+        <h5>Is {{ moment(current_time).format('LLLL') }}.</h5>
+        <h5>That was {{ moment(current_time).fromNow(refresh=True) }}</h5>
+</div>
+<div class="container">
+    <h3>Hello, {% if name %}{{ name }}{% else %}Stranger{% endif %}!</h3>
+    {% if not known %}
+    <p>Pleased to meet you!</p>
+    {% else %}
+    <p>We meet again ma frend!</p>
+    {% endif %}
+    {{ wtf.quick_form(form) }}
+    {{mostrar}}
+</div>
+
+{% endblock %}
