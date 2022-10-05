@@ -1,15 +1,19 @@
+from src.form import Search, Upload
+from datetime import datetime
 from flask import Flask, redirect, render_template
 from flask_cors import CORS
 from flask_moment import Moment
+from flask_bootstrap import Bootstrap
 from elasticsearch import Elasticsearch
 
-# Servidor de Flask
+# Flask server configuration
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'Esto es el pass para asegurar las sesiones'
 CORS(app)
+bootstrap = Bootstrap(app)
 moment = Moment(app)
 
-# Conexion con ElasticSearch
+# ElasticSearch engine connection
 elastic = Elasticsearch(
     "https://127.0.0.1:9200",
     #ca_certs="../elasticsearch-8.4.1/config/certs/http_ca.crt",
@@ -24,7 +28,9 @@ def root():
 
 @app.route('/index')
 def index():
-    return redirect('index.html')
+    search = Search()
+    upload = Upload()
+    return render_template('index.html', view_search=search, view_upload=upload, current_time=datetime.utcnow())
 
 # Tratamiento de errores
 @app.errorhandler(404)

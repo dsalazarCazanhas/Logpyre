@@ -9,14 +9,8 @@
         <h5>That was {{ moment(current_time).fromNow(refresh=True) }}</h5>
 </div>
 <div class="container">
-    <h3>Hello, {% if name %}{{ name }}{% else %}Stranger{% endif %}!</h3>
-    {% if not known %}
-    <p>Pleased to meet you!</p>
-    {% else %}
-    <p>We meet again ma frend!</p>
-    {% endif %}
-    {{ wtf.quick_form(form) }}
-    {{mostrar}}
+    <div>{{ wtf.quick_form(view_search) }}</div>
+    <div>{{ wtf.quick_form(view_upload) }}</div>
 </div>
 
 {% endblock %}
