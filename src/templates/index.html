@@ -11,6 +11,11 @@
 <div class="container">
     <div>{{ wtf.quick_form(view_search) }}</div>
     <div>{{ wtf.quick_form(view_upload) }}</div>
-</div>
+        {% if view_results_hard %}
+        <ul>
+            <p>Data tal cual el resultado del metodo</p>
+            <li>{{ view_results_hard }}</li>
+        </ul>
+</div>  {% endif %}
 
 {% endblock %}

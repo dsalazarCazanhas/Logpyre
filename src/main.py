@@ -1,6 +1,9 @@
+import pandas as ps
 from src.form import Search, Upload
+from src.format2json import importSingle2json
 from datetime import datetime
-from flask import Flask, redirect, render_template
+from werkzeug.utils import secure_filename
+from flask import Flask, redirect, render_template, session, url_for
 from flask_cors import CORS
 from flask_moment import Moment
 from flask_bootstrap import Bootstrap
@@ -21,16 +24,37 @@ elastic = Elasticsearch(
     basic_auth=("elastic", "fLyIqQvWaOxCblH+ypEe")
 )
 
+
+#Global Vars
+doc_loc = app.root_path+"/static/documents/"
+
 # Endpoints
 @app.route('/')
 def root():
     return redirect('/index')
 
-@app.route('/index')
+@app.route('/index', methods=['POST','GET'])
 def index():
     search = Search()
     upload = Upload()
-    return render_template('index.html', view_search=search, view_upload=upload, current_time=datetime.utcnow())
+    if upload.validate_on_submit():
+        # Almacenar el archivo
+        f = upload.file_2_json.data
+        # usar mismo nombre y extension
+        filename = secure_filename(f.filename)
+        # guardarlo en la ubicacion adecuada
+        f.save(doc_loc+filename)
+        # Comienza el cambio de excel a json
+        # Se llama al metodo para convertirlo a json
+        importing = importSingle2json(doc_loc)
+        # Se almacenan las variables en la sesion del usuario para respestar el patron POST/redirect/GET y
+        #mantener los resultados en la vista
+        session['importing'] = importing
+        return redirect(url_for('index'))
+    return render_template('index.html',
+    current_time=datetime.utcnow(),
+    view_search=search, view_upload=upload,
+    view_results_hard=session.get('importing'))
 
 # Tratamiento de errores
 @app.errorhandler(404)
