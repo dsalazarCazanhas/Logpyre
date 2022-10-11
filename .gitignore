@@ -7,6 +7,9 @@ venv
 # Any bash script like pws
 *.ps1
 
+# Visual Studio Code vars
+.vscode
+
 # Created by https://www.toptal.com/developers/gitignore/api/python,windows,flask,venv
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,windows,flask,venv
 
