@@ -1,6 +1,9 @@
 # Ignore elastic search engine
 elasticsearch-8.4.1
 
+# If you're going to create the virtualenv folder inside the project call it venv in order to this take effect
+venv
+
 # Any bash script like pws
 *.ps1
 
