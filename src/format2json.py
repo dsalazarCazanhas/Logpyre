@@ -2,20 +2,19 @@ import os
 import pandas as pd
 
 
-# Formatear excel a json
+# Format excel to json
 def importSingle2json(doc_loc):
-    # Nos ubicamos en la carpeta documentos
+    # Change directory to where the documents are
     os.chdir(doc_loc)
-    # Se escanea en busca del fichero a convertir
+    # Find the file
     with os.scandir(doc_loc) as ficheros:
         ficheros = [fichero.name for fichero in ficheros if fichero.is_file() and fichero.name.endswith('.xlsx')]
-    # Se escoge el fichero
+    # Get the file
     file = ficheros[0]
-    # Se usa panda para leer el excel
+    # Read the excel with pandas
     excel_data_df = pd.read_excel(file)
-    # Se convierte a json(tipo dict)
+    # Make the convertion
     json_str = excel_data_df.to_json()
-    # Se elimina el xlsx luego de la conversion
+    # Delete the file because it is not needed anymore
     os.remove(file)
-    # Devolver resultados
     return json_str
