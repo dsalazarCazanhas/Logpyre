@@ -21,6 +21,7 @@
                 <span class="icon-bar"></span>
             </button>
             <a class="navbar-brand" href="/index">Elastic</a>
+            <a class="navbar-brand" href="/upload">Upload</a>
         </div>
     </div>
 </div>
@@ -40,6 +41,12 @@
         {{ msg }}
     </div>
     {% endfor %}
-    {% block page_content %}{% endblock %}
+    {% block page_content %}
+    <div class="page-header">
+        <h1>Elastic"Search"</h1>
+            <h5>Is {{ moment(current_time).format('LLLL') }}.</h5>
+            <h5>That was {{ moment(current_time).fromNow(refresh=True) }}</h5>
+    </div>
+    {% endblock %}
 </div>
 {% endblock %}

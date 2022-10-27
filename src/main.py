@@ -22,7 +22,7 @@ cert = ssl.get_server_certificate((HOSTNAME, PORT))
 cert_x509 = crypto.load_certificate(crypto.FILETYPE_PEM,cert)
 FINGERPRINT = cert_x509.digest("sha256").decode()
 # Basic Authentication: User and Pass
-USER, PASS='elastic', 'ef7=38UjMYkgKlsKLthf'
+USER, PASS='elastic', '1Z6vnuidJG*tjIh_CZV6'
 
 
 # Flask server configuration
@@ -53,7 +53,13 @@ def root():
 @app.route('/index', methods=['POST','GET'])
 def index():
     search = Search()
-    upload = Upload()
+    return render_template('index.html',
+    current_time=datetime.utcnow(),
+    view_search=search)
+
+@app.route('/upload', methods=['GET','POST'])
+def upload():
+    upload=Upload()
     if upload.validate_on_submit():
         # Saving the file locally
         f = upload.file_2_json.data
@@ -65,11 +71,10 @@ def index():
         importing = importSingle2json(doc_loc)
         # Session variable for rendering the view correctly
         session['importing'] = importing
-        return redirect(url_for('index'))
-    return render_template('index.html',
+        return redirect(url_for('upload'))
+    return render_template('upload.html',
     current_time=datetime.utcnow(),
-    view_search=search, view_upload=upload,
-    view_results_hard=session.get('importing'))
+    view_upload=upload)
 
 # Errors
 @app.errorhandler(404)
