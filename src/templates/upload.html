@@ -7,6 +7,10 @@
 
 <div class="container">
     <div>{{ wtf.quick_form(view_upload) }}</div>
+    {% if success_up %}
+        <div>{{ success_up }}</div>
+        <div>{{ content_json }}</div>
+    {% endif %}
 </div>
 
 {% endblock %}

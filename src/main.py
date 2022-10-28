@@ -55,7 +55,8 @@ def index():
     search = Search()
     return render_template('index.html',
     current_time=datetime.utcnow(),
-    view_search=search)
+    view_search=search,
+    all_data=getIndexAll())
 
 @app.route('/upload', methods=['GET','POST'])
 def upload():
@@ -70,10 +71,15 @@ def upload():
         # Excel to Json
         importing = importSingle2json(doc_loc)
         # Session variable for rendering the view correctly
-        session['importing'] = importing
-        return redirect(url_for('upload'))
+        session['up'] = "The operation was completed successfully"
+        return render_template('upload.html',
+        current_time=datetime.utcnow(),
+        success_up=session['up'],
+        content_json=importing,
+        view_upload=upload)
     return render_template('upload.html',
     current_time=datetime.utcnow(),
+    success_up=session['up'],
     view_upload=upload)
 
 # Errors
@@ -93,9 +99,9 @@ def internal_server_error(error):
     jsonr = resp['_source']
     return jsonr"""
 
-"""def getIndexAll():
+def getIndexAll():
     resp = elastic.indices.get(index="*")
-    return resp"""
+    return resp
 
 """def searchIndex(index2search):
     resp = elastic.search(index=index2search, query={"match_all": {}})

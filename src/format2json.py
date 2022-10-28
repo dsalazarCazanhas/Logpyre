@@ -13,8 +13,10 @@ def importSingle2json(doc_loc):
     file = ficheros[0]
     # Read the excel with pandas
     excel_data_df = pd.read_excel(file)
+    print(excel_data_df.pop('Unnamed'))
     # Make the convertion
     json_str = excel_data_df.to_json()
+    print(json_str)
     # Delete the file because it is not needed anymore
     os.remove(file)
     return json_str
