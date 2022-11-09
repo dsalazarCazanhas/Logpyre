@@ -6,7 +6,7 @@ from wtforms.validators import DataRequired
 
 
 class Search(FlaskForm):
-    name = StringField('¿Qué desea buscar?', validators=[DataRequired()])
+    name = StringField('IP, de momento', validators=[DataRequired()])
     submit = SubmitField('go...')
 
 class Upload(FlaskForm):

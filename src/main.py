@@ -1,11 +1,13 @@
-#import pandas as ps
+import pandas as ps
 import ssl
+import os
+#import json
 from OpenSSL import crypto
 from src.form import Search, Upload
 from src.format2json import importSingle2json
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from flask import Flask, redirect, render_template, session, url_for
+from flask import Flask, jsonify, redirect, render_template, session, url_for
 from flask_cors import CORS
 from flask_moment import Moment
 from flask_bootstrap import Bootstrap
@@ -22,7 +24,7 @@ cert = ssl.get_server_certificate((HOSTNAME, PORT))
 cert_x509 = crypto.load_certificate(crypto.FILETYPE_PEM,cert)
 FINGERPRINT = cert_x509.digest("sha256").decode()
 # Basic Authentication: User and Pass
-USER, PASS='elastic', '1Z6vnuidJG*tjIh_CZV6'
+USER, PASS='elastic', 'jHYmfqosfJX=mHPFdHF0'
 
 
 # Flask server configuration
@@ -53,10 +55,15 @@ def root():
 @app.route('/index', methods=['POST','GET'])
 def index():
     search = Search()
+    elastic_db = getIndexAll()
+    if search.validate_on_submit():
+        result = searchIndex(search)
+        session['result']=result
+        url_for('index')
     return render_template('index.html',
     current_time=datetime.utcnow(),
-    view_search=search,
-    all_data=getIndexAll())
+    current_data=elastic_db,
+    view_search=search)
 
 @app.route('/upload', methods=['GET','POST'])
 def upload():
@@ -66,20 +73,20 @@ def upload():
         f = upload.file_2_json.data
         # Same name and extension for compatibility
         filename = secure_filename(f.filename)
+        name = os.path.splitext(filename)
         # Correct location doc_loc
         f.save(doc_loc+filename)
         # Excel to Json
         importing = importSingle2json(doc_loc)
+        # Ingest data to elastic
+        elastic.index(index=name[0], document=importing)
         # Session variable for rendering the view correctly
-        session['up'] = "The operation was completed successfully"
         return render_template('upload.html',
         current_time=datetime.utcnow(),
-        success_up=session['up'],
         content_json=importing,
         view_upload=upload)
     return render_template('upload.html',
     current_time=datetime.utcnow(),
-    success_up=session['up'],
     view_upload=upload)
 
 # Errors
@@ -103,13 +110,13 @@ def getIndexAll():
     resp = elastic.indices.get(index="*")
     return resp
 
-"""def searchIndex(index2search):
+def searchIndex(index2search):
     resp = elastic.search(index=index2search, query={"match_all": {}})
     for hit in resp['hits']['hits']:
         resource = (hit["_source"])
         read_keys = resource.keys()
         read_values = resource.values()
-    return resource, read_keys, read_values"""
+    return resource, read_keys, read_values
 
 #resp = elastic.search(index="test-index", query={"match_all": {}})
 #print("Got %d Hits:" % resp['hits']['total']['value'])
