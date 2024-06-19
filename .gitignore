@@ -1,9 +1,6 @@
 # Ignore elastic search engine
 elasticsearch-8.4.1
 
-# If you're going to create the virtualenv folder inside the project call it venv in order to this take effect
-venv
-
 # Any bash script like pws
 *.ps1
 
@@ -177,7 +174,7 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

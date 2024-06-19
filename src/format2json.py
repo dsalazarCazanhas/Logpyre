@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # Format excel to json
-def importSingle2json(doc_loc):
+def import_single2json(doc_loc):
     # Change directory to where the documents are
     os.chdir(doc_loc)
     # Find the file
