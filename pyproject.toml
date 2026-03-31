@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "logpyre"
+version = "0.1.0"
+description = "Lightweight log ingestion and search tool built on Elasticsearch"
+authors = ["dsalazarCazanhas"]
+license = "Apache-2.0"
+readme = "README.md"
+packages = [{include = "logpyre", from = "src"}]
+
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+flask = "^3.0"
+flask-cors = "^4.0"
+flask-moment = "^1.0"
+flask-bootstrap = "^3.3"
+flask-wtf = "^1.2"
+elasticsearch = "^8.14"
+python-dotenv = "^1.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0"
+ruff = "^0.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
