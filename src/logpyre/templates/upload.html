@@ -13,4 +13,44 @@
         {{ wtf.quick_form(form) }}
     </div>
 </div>
+
+{% if result %}
+<div class="row" style="margin-top: 20px;">
+    <div class="col-md-8">
+        {% if result.failed == 0 %}
+        <div class="alert alert-success">
+            <strong>Done.</strong>
+            {{ result.indexed }} / {{ result.total }} lines indexed successfully.
+        </div>
+        {% else %}
+        <div class="alert alert-warning">
+            <strong>Completed with errors.</strong>
+            {{ result.indexed }} indexed, {{ result.failed }} failed out of {{ result.total }} lines.
+        </div>
+        {% endif %}
+
+        {% if result.errors %}
+        <h4>Failed lines</h4>
+        <table class="table table-condensed table-bordered">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Raw line</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for err in result.errors %}
+                <tr>
+                    <td>{{ err.line_number }}</td>
+                    <td><code>{{ err.raw }}</code></td>
+                    <td>{{ err.reason }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 {% endblock %}
