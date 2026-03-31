@@ -1,4 +1,4 @@
-from .models import NginxLogDocument
+from .models import BaseLogDocument
 from .parsers.base import BaseParser
 from .parsers.combined import CombinedParser
 from .parsers.json_log import JsonLogParser
@@ -12,7 +12,7 @@ _PARSERS: list[BaseParser] = [
 ]
 
 
-def parse_line(line: str) -> NginxLogDocument:
+def parse_line(line: str) -> BaseLogDocument:
     """Parse a single raw log line into a structured document.
 
     Iterates through registered parsers in order, delegating to the first one
@@ -22,7 +22,7 @@ def parse_line(line: str) -> NginxLogDocument:
         line: A single line from a log file.
 
     Returns:
-        A NginxLogDocument ready to be indexed in Elasticsearch.
+        A BaseLogDocument subclass ready to be indexed in Elasticsearch.
 
     Raises:
         ValueError: If the line is empty or no registered parser recognises
@@ -43,3 +43,39 @@ def parse_line(line: str) -> NginxLogDocument:
         f"Registered parsers: {registered}. "
         f"Line: {stripped!r}"
     )
+
+
+def available_formats() -> list[dict]:
+    """Return metadata for every registered parser.
+
+    Returns:
+        A list of dicts, each with ``format_name`` and ``format_label`` keys,
+        in the same order as the parser registry.
+    """
+    return [
+        {"format_name": p.format_name, "format_label": p.format_label}
+        for p in _PARSERS
+    ]
+
+
+def column_defs_for(format_name: str) -> list[dict]:
+    """Return the AG Grid column definitions for *format_name*.
+
+    Falls back to the first registered parser's column_defs if the format is
+    not found (e.g. legacy data indexed under an old format name).
+    """
+    for parser in _PARSERS:
+        if parser.format_name == format_name:
+            return parser.column_defs
+    return _PARSERS[0].column_defs if _PARSERS else []
+
+
+def format_label_for(format_name: str) -> str:
+    """Return the human-readable label for *format_name*.
+
+    Falls back to *format_name* itself if no parser matches.
+    """
+    for parser in _PARSERS:
+        if parser.format_name == format_name:
+            return parser.format_label
+    return format_name

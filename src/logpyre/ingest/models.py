@@ -5,34 +5,49 @@ from pydantic import BaseModel, Field
 from .request_classifier import RequestCategory
 
 
-class NginxLogDocument(BaseModel):
-    """Structured representation of an Nginx log entry.
+class BaseLogDocument(BaseModel):
+    """Universal base for every parsed log document.
 
-    Produced by any concrete parser and used as the document
-    indexed into Elasticsearch. Both the combined and JSON formats
-    are normalised to this same shape.
+    All concrete log format models must inherit from this class.  The fields
+    defined here are format-agnostic and present in every indexed document,
+    regardless of whether the source is an Nginx combined log, a JSON log,
+    a syslog file, or any future format added via a new parser.
 
-    For non-HTTP entries (SOCKS, TLS, RDP, etc.) the ``method``,
-    ``path`` and ``protocol`` fields are ``None``; the original
-    request string is preserved in ``raw_request`` and the detected
-    protocol is stored in ``request_category``.
+    The ``log_format`` field is used as part of the Elasticsearch index name
+    (``logpyre-{log_format}-YYYY.MM.DD``), so querying or managing data by
+    format is trivial without any additional metadata.
     """
 
-    timestamp: datetime = Field(
-        description="Log entry timestamp with timezone."
+    log_format: str = Field(
+        description="Parser format slug (e.g. 'nginx_combined'). Used in the index name.",
     )
+    timestamp: datetime = Field(
+        description="Log entry timestamp with timezone.",
+    )
+    raw: str = Field(
+        description="Original unparsed log line, preserved for debugging.",
+    )
+    raw_request: str = Field(
+        description="Full value of the request field as recorded in the log.",
+    )
+    request_category: RequestCategory = Field(
+        description="Detected protocol category of the request field.",
+    )
+
+
+class NginxLogDocument(BaseLogDocument):
+    """Nginx-specific log document produced by the combined and JSON parsers.
+
+    Extends :class:`BaseLogDocument` with fields present in the Nginx
+    ``combined`` log format and its JSON structured equivalent.
+    """
+
     remote_addr: str = Field(
-        description="Client IP address."
+        description="Client IP address.",
     )
     remote_user: str | None = Field(
         default=None,
         description="Authenticated user, if any. None when the log shows '-'.",
-    )
-    raw_request: str = Field(
-        description="Full value of the request field as recorded in the log."
-    )
-    request_category: RequestCategory = Field(
-        description="Detected protocol category of the request field."
     )
     method: str | None = Field(
         default=None,
@@ -47,18 +62,15 @@ class NginxLogDocument(BaseModel):
         description="HTTP protocol version (e.g. HTTP/1.1). None for non-HTTP entries.",
     )
     status: int = Field(
-        description="HTTP response status code."
+        description="HTTP response status code.",
     )
     body_bytes_sent: int = Field(
-        description="Number of bytes sent in the response body."
+        description="Number of bytes sent in the response body.",
     )
     http_referer: str | None = Field(
         default=None,
         description="Referer header value. None when the log shows '-' or is absent.",
     )
     http_user_agent: str = Field(
-        description="User-Agent header value."
-    )
-    raw: str = Field(
-        description="Original unparsed log line, preserved for debugging."
+        description="User-Agent header value.",
     )

@@ -29,6 +29,20 @@ _TIME_FORMAT = "%d/%b/%Y:%H:%M:%S %z"
 class CombinedParser:
     """Parser for the Nginx default 'combined' log format."""
 
+    format_name: str = "nginx_combined"
+    format_label: str = "Nginx Combined"
+    column_defs: list[dict] = [
+        {"field": "timestamp",        "headerName": "Timestamp",  "width": 158, "sortable": True, "sort": "desc", "renderer": "timestamp"},
+        {"field": "remote_addr",       "headerName": "Origin",     "width": 135, "filter": "agTextColumnFilter", "renderer": "ip"},
+        {"field": "request_category",  "headerName": "Category",   "width": 100, "filter": "agTextColumnFilter", "renderer": "category"},
+        {"field": "method",            "headerName": "Method",     "width":  85, "filter": "agTextColumnFilter", "renderer": "method"},
+        {"field": "path",              "headerName": "Path",       "flex": 1, "minWidth": 200, "filter": "agTextColumnFilter", "renderer": "path", "wrapText": True},
+        {"field": "status",            "headerName": "Status",     "width":  80, "sortable": True, "filter": "agNumberColumnFilter", "renderer": "status"},
+        {"field": "body_bytes_sent",   "headerName": "Bytes",      "width":  80, "sortable": True, "filter": "agNumberColumnFilter", "type": "numericColumn"},
+        {"field": "http_referer",      "headerName": "Referer",    "width": 180, "filter": "agTextColumnFilter", "renderer": "referer", "wrapText": True},
+        {"field": "http_user_agent",   "headerName": "User Agent", "width": 220, "filter": "agTextColumnFilter", "renderer": "ua", "wrapText": True},
+    ]
+
     def can_parse(self, line: str) -> bool:
         return bool(_COMBINED_PATTERN.match(line))
 
@@ -53,6 +67,7 @@ class CombinedParser:
             protocol = parts[2] if len(parts) == 3 else None
 
         return NginxLogDocument(
+            log_format=self.format_name,
             timestamp=datetime.strptime(g["time_local"], _TIME_FORMAT),
             remote_addr=g["remote_addr"],
             remote_user=None if g["remote_user"] == "-" else g["remote_user"],

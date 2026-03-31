@@ -6,8 +6,8 @@ from .client import get_client
 # Default page size for search results.
 PAGE_SIZE = 20
 
-# Index pattern covering all Logpyre Nginx indices regardless of date.
-_INDEX_PATTERN = "logpyre-nginx-*"
+# Index pattern covering all Logpyre indices regardless of format or date.
+_INDEX_PATTERN = "logpyre-*"
 
 
 @dataclass

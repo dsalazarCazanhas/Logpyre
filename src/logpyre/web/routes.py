@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, render_template, request
 
 from ..elastic.client import get_client
 from ..elastic.search import PAGE_SIZE, search_logs
+from ..ingest.parser import available_formats, column_defs_for, format_label_for
 from ..ingest.pipeline import IngestResult, ingest_file
 from .forms import UploadForm
 
@@ -26,6 +27,10 @@ def api_search():
         q         Free-text search against the raw log line (default: "").
         page      1-based page number (default: 1).
         page_size Number of rows per page (default: PAGE_SIZE).
+
+    Response includes ``column_defs`` and ``format_label`` derived from the
+    ``log_format`` field of the first hit. Falls back to the first registered
+    parser when there are no hits.
     """
     q = request.args.get("q", "").strip()
     try:
@@ -39,6 +44,8 @@ def api_search():
 
     result = search_logs(query=q, page=page, page_size=page_size)
 
+    log_format = result.hits[0].get("log_format", "") if result.hits else ""
+
     return jsonify({
         "hits": result.hits,
         "total": result.total,
@@ -47,7 +54,19 @@ def api_search():
         "total_pages": result.total_pages,
         "has_prev": result.has_prev,
         "has_next": result.has_next,
+        "format_label": format_label_for(log_format),
+        "column_defs": column_defs_for(log_format),
     })
+
+
+@bp.route("/api/formats", methods=["GET"])
+def api_formats():
+    """List all registered parser formats.
+
+    Returns a JSON array of objects with ``format_name`` and ``format_label``
+    keys, in the same order as the parser registry.
+    """
+    return jsonify(available_formats())
 
 
 @bp.route("/upload", methods=["GET", "POST"])
