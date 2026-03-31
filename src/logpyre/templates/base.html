@@ -1,27 +1,26 @@
 {% extends "bootstrap/base.html" %}
 
-{% block title %}ElasticPy{% endblock %}
+{% block title %}Logpyre{% endblock %}
 
 {% block head %}
 {{ super() }}
-<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}"
-    type="image/x-icon">
-<link rel="icon" href="{{ url_for('static', filename='favicon.png') }}"
-    type="image/x-icon">
+<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/x-icon">
+<link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/x-icon">
 {% endblock %}
+
 {% block navbar %}
-<div class="navbar navbar-inverse " role="navigation">
+<div class="navbar navbar-inverse" role="navigation">
     <div class="container">
         <div class="navbar-header">
             <button type="button" class="navbar-toggle"
-            data-toggle="collapse" data-target=".navbar-collapse">
+                data-toggle="collapse" data-target=".navbar-collapse">
                 <span class="sr-only">Toggle navigation</span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
-            <a class="navbar-brand" href="/index">Elastic</a>
-            <a class="navbar-brand" href="/upload">Upload</a>
+            <a class="navbar-brand" href="{{ url_for('web.index') }}">Logpyre</a>
+            <a class="navbar-brand" href="{{ url_for('web.upload') }}">Upload</a>
         </div>
     </div>
 </div>
@@ -36,16 +35,14 @@
 <div class="container">
     {% for msg in get_flashed_messages() %}
     <div class="alert alert-warning">
-        {{ super() }}
         <button type="button" class="close" data-dismiss="alert">&times;</button>
         {{ msg }}
     </div>
     {% endfor %}
     {% block page_content %}
     <div class="page-header">
-        <h1>Elastic"Search"</h1>
-            <h5>Is {{ moment(current_time).format('LLLL') }}.</h5>
-            <h5>That was {{ moment(current_time).fromNow(refresh=True) }}</h5>
+        <h1>Logpyre</h1>
+        <h5>{{ moment(current_time).format('LLLL') }}</h5>
     </div>
     {% endblock %}
 </div>

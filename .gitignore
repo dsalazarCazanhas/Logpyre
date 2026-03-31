@@ -1,23 +1,23 @@
-# Ignore elastic search engine
-elasticsearch-8.4.1
-
-# Any bash script like pws
-*.ps1
-
-# Visual Studio Code vars
-.vscode
-
-# Created by https://www.toptal.com/developers/gitignore/api/python,windows,flask,venv
-# Edit at https://www.toptal.com/developers/gitignore?templates=python,windows,flask,venv
-
-### Flask ###
-instance/*
-!instance/.gitignore
-.webassets-cache
+# ── Project-specific ──────────────────────────────────────────────────────────
+# Real secrets — never commit
 .env
 
-### Flask.Python Stack ###
-# Byte-compiled / optimized / DLL files
+# Uploaded log files processed by the app
+src/indexpy/static/documents/
+
+# Local Elasticsearch binary if present
+elasticsearch-*/
+
+# Visual Studio Code workspace settings
+.vscode/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+
+# ── Flask ─────────────────────────────────────────────────────────────────────
+instance/
+.webassets-cache
+
+# ── Byte-compiled / optimized ─────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
 *$py.class
@@ -137,13 +137,17 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.venv
-env/
+# ── Virtual environments ───────────────────────────────────────────────────────
+.venv/
 venv/
-ENV/
-env.bak/
-venv.bak/
+env/
+
+# ── Poetry ────────────────────────────────────────────────────────────────────
+# poetry.lock IS committed — ensures reproducible installs across machines
+# Uncomment only if this were a library published to PyPI:
+# poetry.lock
+
+# ── Test / coverage ───────────────────────────────────────────────────────────
 
 # Spyder project settings
 .spyderproject
