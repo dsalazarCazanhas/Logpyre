@@ -30,6 +30,9 @@ def create_app(overrides: dict | None = None) -> Flask:
     app.config["ELASTIC_REQUEST_TIMEOUT"] = settings.elastic_request_timeout
     app.config["ELASTIC_MAX_RETRIES"] = settings.elastic_max_retries
 
+    if app.config["APP_ENV"] == "development":
+        app.config['TESTING'] = True
+
     if overrides:
         app.config.update(overrides)
 
