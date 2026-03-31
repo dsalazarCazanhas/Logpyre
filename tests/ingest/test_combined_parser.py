@@ -58,6 +58,13 @@ LINE_UNKNOWN_RAW = (
     '"MGLNDD_1.2.3.4_443" 400 0 "-" "-"'
 )
 
+# HTTP/0.9-style request with no protocol token (two-part: "METHOD /path")
+LINE_TWO_PART_HTTP = (
+    '176.241.18.250 - - [04/Oct/2024:18:06:07 +0000] '
+    '"GET /v1-list-timezone-teams" 304 0 "-" '
+    '"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"'
+)
+
 
 # ---------------------------------------------------------------------------
 # Happy path
@@ -195,6 +202,22 @@ class TestCombinedParserCategories:
     def test_non_http_raw_request_preserved(self):
         doc = parser.parse(LINE_SOCKS4)
         assert "\\x04\\x01" in doc.raw_request
+
+    def test_can_parse_two_part_http_line(self):
+        assert parser.can_parse(LINE_TWO_PART_HTTP) is True
+
+    def test_two_part_http_classified_as_http(self):
+        doc = parser.parse(LINE_TWO_PART_HTTP)
+        assert doc.request_category == RequestCategory.HTTP
+
+    def test_two_part_http_method_and_path_extracted(self):
+        doc = parser.parse(LINE_TWO_PART_HTTP)
+        assert doc.method == "GET"
+        assert doc.path == "/v1-list-timezone-teams"
+
+    def test_two_part_http_protocol_is_none(self):
+        doc = parser.parse(LINE_TWO_PART_HTTP)
+        assert doc.protocol is None
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 {{ super() }}
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
 <style>
-  #log-grid { height: 600px; width: 100%; margin-top: 16px; }
+  #log-grid { height: 620px; width: 100%; margin-top: 16px; }
   .cat-http    { background:#5cb85c; color:#fff; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
   .cat-tls     { background:#f0ad4e; color:#fff; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
   .cat-socks4,
@@ -20,6 +20,8 @@
   #search-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   #search-toolbar input { flex:1; min-width:220px; max-width:500px; }
   #result-info { color:#777; font-size:13px; margin-left:8px; }
+  /* wrap cells need white-space and line-height to look clean */
+  .cell-wrap { white-space: normal !important; line-height: 1.45; padding: 6px 4px; word-break: break-all; }
 </style>
 {% endblock %}
 
@@ -57,15 +59,6 @@
         return `<span class="${cls}">${text}</span>`;
     };
 
-    const requestRenderer = (params) => {
-        const row = params.data;
-        if (row.method) {
-            return `<code>${row.method} ${row.path}</code> <small style="color:#999">${row.protocol}</small>`;
-        }
-        const raw = row.raw_request || "";
-        return `<span title="${raw.replace(/"/g, '&quot;')}" style="color:#999">${raw.substring(0, 55)}${raw.length > 55 ? "…" : ""}</span>`;
-    };
-
     const statusRenderer = (params) => {
         const s = params.value;
         let cls = "status-err";
@@ -75,40 +68,80 @@
         return `<span class="${cls}">${s}</span>`;
     };
 
+    // Path: path for HTTP, full raw_request with wrap for non-HTTP
+    const pathRenderer = (params) => {
+        const row = params.data;
+        if (row.path) {
+            return `<span class="cell-wrap" style="font-family:monospace;font-size:12px;">${row.path}</span>`;
+        }
+        const raw = row.raw_request || "—";
+        return `<span class="cell-wrap" style="color:#999;font-size:11px;">${raw}</span>`;
+    };
+
+    // User-agent with wrap
+    const uaRenderer = (params) => {
+        const ua = params.value || "—";
+        return `<span class="cell-wrap" style="font-size:11px;color:#555;">${ua}</span>`;
+    };
+
     const columnDefs = [
         {
             field: "timestamp",
             headerName: "Timestamp",
-            width: 170,
+            width: 158,
             sortable: true,
-            valueFormatter: p => p.value ? p.value.substring(0, 19).replace("T", " ") : "",
             sort: "desc",
+            valueFormatter: p => p.value ? p.value.substring(0, 19).replace("T", " ") : "",
         },
         {
             field: "remote_addr",
-            headerName: "Remote IP",
-            width: 140,
+            headerName: "Origin",
+            width: 135,
             filter: "agTextColumnFilter",
-            cellRenderer: p => `<code>${p.value}</code>`,
+            cellRenderer: p => `<code style="font-size:12px;">${p.value}</code>`,
         },
         {
             field: "request_category",
             headerName: "Category",
-            width: 110,
+            width: 100,
             filter: "agTextColumnFilter",
             cellRenderer: categoryRenderer,
         },
         {
-            field: "raw_request",
-            headerName: "Request",
+            field: "method",
+            headerName: "Method",
+            width: 85,
+            filter: "agTextColumnFilter",
+            valueFormatter: p => p.value || "—",
+            cellStyle: { fontFamily: "monospace", fontSize: "12px" },
+        },
+        {
+            field: "path",
+            headerName: "Path",
             flex: 1,
-            minWidth: 220,
-            cellRenderer: requestRenderer,
+            minWidth: 200,
+            filter: "agTextColumnFilter",
+            wrapText: true,
+            autoHeight: true,
+            cellRenderer: pathRenderer,
+        },
+        {
+            field: "http_referer",
+            headerName: "Referer",
+            width: 180,
+            filter: "agTextColumnFilter",
+            wrapText: true,
+            autoHeight: true,
+            cellRenderer: p => {
+                const v = p.value;
+                if (!v) return `<span style="color:#ccc;">—</span>`;
+                return `<span class="cell-wrap" style="font-size:11px;color:#555;" title="${v}">${v}</span>`;
+            },
         },
         {
             field: "status",
             headerName: "Status",
-            width: 90,
+            width: 80,
             sortable: true,
             filter: "agNumberColumnFilter",
             cellRenderer: statusRenderer,
@@ -116,7 +149,7 @@
         {
             field: "body_bytes_sent",
             headerName: "Bytes",
-            width: 90,
+            width: 80,
             sortable: true,
             filter: "agNumberColumnFilter",
             type: "numericColumn",
@@ -124,8 +157,11 @@
         {
             field: "http_user_agent",
             headerName: "User Agent",
-            width: 200,
+            width: 220,
             filter: "agTextColumnFilter",
+            wrapText: true,
+            autoHeight: true,
+            cellRenderer: uaRenderer,
         },
     ];
 
@@ -150,7 +186,6 @@
         pagination: true,
         paginationPageSize: PAGE_SIZE,
         suppressPaginationPanel: true,   // we'll build our own nav
-        rowHeight: 36,
         headerHeight: 38,
         suppressCellFocus: true,
         enableCellTextSelection: true,

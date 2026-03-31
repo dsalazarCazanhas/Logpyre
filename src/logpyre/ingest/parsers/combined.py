@@ -48,7 +48,9 @@ class CombinedParser:
         protocol: str | None = None
         if category == RequestCategory.HTTP:
             parts = raw_request.split(" ", 2)
-            method, path, protocol = parts[0], parts[1], parts[2]
+            method = parts[0]
+            path = parts[1]
+            protocol = parts[2] if len(parts) == 3 else None
 
         return NginxLogDocument(
             timestamp=datetime.strptime(g["time_local"], _TIME_FORMAT),

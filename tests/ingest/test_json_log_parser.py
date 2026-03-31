@@ -176,8 +176,8 @@ class TestJsonLogParserErrors:
         with pytest.raises(ValueError, match="not valid JSON"):
             parser.parse("{this is broken json")
 
-    def test_parse_non_http_request_classified_as_unknown_raw(self):
-        # request has only two parts — not valid HTTP, not a known binary probe
+    def test_parse_two_part_http_request_classified_as_http(self):
+        # "METHOD /path" with no HTTP/version token — treated as HTTP (protocol=None)
         line = json.dumps({
             "time": "2024-03-15T10:22:01+00:00",
             "remote_addr": "1.2.3.4",
@@ -186,8 +186,8 @@ class TestJsonLogParserErrors:
             "bytes_sent": 0,
         })
         doc = parser.parse(line)
-        assert doc.request_category == RequestCategory.UNKNOWN_RAW
-        assert doc.method is None
-        assert doc.path is None
+        assert doc.request_category == RequestCategory.HTTP
+        assert doc.method == "GET"
+        assert doc.path == "/only-two-parts"
         assert doc.protocol is None
         assert doc.raw_request == "GET /only-two-parts"

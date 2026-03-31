@@ -21,6 +21,14 @@ _SOCKS5_PREFIXES = ("\x05\x01", "\x05\x02", "\\x05\\x01", "\\x05\\x02")
 _RDP_PREFIXES = ("\x03\x00", "\\x03\\x00")
 
 
+# HTTP methods per RFC 9110 + common WebDAV extensions.
+_HTTP_METHODS = frozenset({
+    "GET", "HEAD", "POST", "PUT", "DELETE", "OPTIONS", "TRACE", "PATCH",
+    "CONNECT", "PROPFIND", "PROPPATCH", "MKCOL", "COPY", "MOVE",
+    "LOCK", "UNLOCK", "SEARCH",
+})
+
+
 def classify_request(raw: str) -> RequestCategory:
     """Classify the protocol of a log request field.
 
@@ -31,9 +39,15 @@ def classify_request(raw: str) -> RequestCategory:
     Returns:
         The detected :class:`RequestCategory`.
     """
-    # Standard HTTP: "METHOD /path HTTP/version"
     parts = raw.split(" ", 2)
+
+    # Standard HTTP: "METHOD /path HTTP/version"
     if len(parts) == 3 and parts[2].startswith("HTTP/"):
+        return RequestCategory.HTTP
+
+    # HTTP/0.9 or malformed clients that omit the protocol token:
+    # "GET /path"  →  still HTTP, protocol will be stored as None.
+    if len(parts) == 2 and parts[0] in _HTTP_METHODS:
         return RequestCategory.HTTP
 
     if any(raw.startswith(p) for p in _TLS_PREFIXES):
