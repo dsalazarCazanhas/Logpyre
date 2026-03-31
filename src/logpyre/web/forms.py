@@ -1,16 +1,10 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
-from wtforms import StringField, SubmitField, FileField
-from wtforms.validators import DataRequired
+from wtforms import SubmitField, FileField
 
 # Accepted file extensions for log upload.
 # .log and .txt cover the vast majority of plain-text log files.
 _ALLOWED_EXTENSIONS = ["log", "txt"]
-
-
-class SearchForm(FlaskForm):
-    query = StringField("Search", validators=[DataRequired()])
-    submit = SubmitField("Search")
 
 
 class UploadForm(FlaskForm):

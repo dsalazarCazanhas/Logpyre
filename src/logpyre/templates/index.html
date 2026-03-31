@@ -1,16 +1,256 @@
 {% extends "base.html" %}
-{% import "bootstrap/wtf.html" as wtf %}
 
-{% block title %}Search — Logpyre{% endblock %}
+{% block title %}Traces — Logpyre{% endblock %}
+
+{% block head %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+<style>
+  #log-grid { height: 600px; width: 100%; margin-top: 16px; }
+  .cat-http    { background:#5cb85c; color:#fff; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
+  .cat-tls     { background:#f0ad4e; color:#fff; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
+  .cat-socks4,
+  .cat-socks5,
+  .cat-rdp     { background:#d9534f; color:#fff; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
+  .cat-unknown { background:#777;    color:#fff; padding:2px 7px; border-radius:3px; font-size:11px; font-weight:600; }
+  .status-ok   { color:#5cb85c; font-weight:600; }
+  .status-redir{ color:#31b0d5; font-weight:600; }
+  .status-warn { color:#ec971f; font-weight:600; }
+  .status-err  { color:#c9302c; font-weight:600; }
+  #search-toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  #search-toolbar input { flex:1; min-width:220px; max-width:500px; }
+  #result-info { color:#777; font-size:13px; margin-left:8px; }
+</style>
+{% endblock %}
 
 {% block page_content %}
 <div class="page-header">
-    <h1>Search logs</h1>
+    <h1>Log traces</h1>
     <h5>{{ moment(current_time).format('LLLL') }}</h5>
 </div>
-<div class="row">
-    <div class="col-md-6">
-        {{ wtf.quick_form(form) }}
-    </div>
+
+<div id="search-toolbar">
+    <input id="search-input" type="text" class="form-control"
+           placeholder="Search raw log line…" style="max-width:500px;">
+    <button id="search-btn" class="btn btn-primary">Search</button>
+    <button id="clear-btn" class="btn btn-default" style="display:none;">Clear</button>
+    <span id="result-info"></span>
 </div>
+
+<div id="log-grid" class="ag-theme-alpine"></div>
+
+<script>
+(function () {
+    // -----------------------------------------------------------------------
+    // Column definitions
+    // -----------------------------------------------------------------------
+    const categoryRenderer = (params) => {
+        const cat = params.value || "unknown_raw";
+        const labels = {
+            http:          ["HTTP",   "cat-http"],
+            tls_handshake: ["TLS",    "cat-tls"],
+            socks4:        ["SOCKS4", "cat-socks4"],
+            socks5:        ["SOCKS5", "cat-socks5"],
+            rdp:           ["RDP",    "cat-rdp"],
+        };
+        const [text, cls] = labels[cat] ?? ["RAW", "cat-unknown"];
+        return `<span class="${cls}">${text}</span>`;
+    };
+
+    const requestRenderer = (params) => {
+        const row = params.data;
+        if (row.method) {
+            return `<code>${row.method} ${row.path}</code> <small style="color:#999">${row.protocol}</small>`;
+        }
+        const raw = row.raw_request || "";
+        return `<span title="${raw.replace(/"/g, '&quot;')}" style="color:#999">${raw.substring(0, 55)}${raw.length > 55 ? "…" : ""}</span>`;
+    };
+
+    const statusRenderer = (params) => {
+        const s = params.value;
+        let cls = "status-err";
+        if (s < 300) cls = "status-ok";
+        else if (s < 400) cls = "status-redir";
+        else if (s < 500) cls = "status-warn";
+        return `<span class="${cls}">${s}</span>`;
+    };
+
+    const columnDefs = [
+        {
+            field: "timestamp",
+            headerName: "Timestamp",
+            width: 170,
+            sortable: true,
+            valueFormatter: p => p.value ? p.value.substring(0, 19).replace("T", " ") : "",
+            sort: "desc",
+        },
+        {
+            field: "remote_addr",
+            headerName: "Remote IP",
+            width: 140,
+            filter: "agTextColumnFilter",
+            cellRenderer: p => `<code>${p.value}</code>`,
+        },
+        {
+            field: "request_category",
+            headerName: "Category",
+            width: 110,
+            filter: "agTextColumnFilter",
+            cellRenderer: categoryRenderer,
+        },
+        {
+            field: "raw_request",
+            headerName: "Request",
+            flex: 1,
+            minWidth: 220,
+            cellRenderer: requestRenderer,
+        },
+        {
+            field: "status",
+            headerName: "Status",
+            width: 90,
+            sortable: true,
+            filter: "agNumberColumnFilter",
+            cellRenderer: statusRenderer,
+        },
+        {
+            field: "body_bytes_sent",
+            headerName: "Bytes",
+            width: 90,
+            sortable: true,
+            filter: "agNumberColumnFilter",
+            type: "numericColumn",
+        },
+        {
+            field: "http_user_agent",
+            headerName: "User Agent",
+            width: 200,
+            filter: "agTextColumnFilter",
+        },
+    ];
+
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+    let currentQuery = "";
+    let currentPage  = 1;
+    const PAGE_SIZE  = 50;
+
+    // -----------------------------------------------------------------------
+    // Grid setup
+    // -----------------------------------------------------------------------
+    const gridOptions = {
+        columnDefs,
+        rowData: [],
+        defaultColDef: {
+            resizable: true,
+            sortable: false,
+            filter: false,
+        },
+        pagination: true,
+        paginationPageSize: PAGE_SIZE,
+        suppressPaginationPanel: true,   // we'll build our own nav
+        rowHeight: 36,
+        headerHeight: 38,
+        suppressCellFocus: true,
+        enableCellTextSelection: true,
+        animateRows: false,
+    };
+
+    const gridEl = document.getElementById("log-grid");
+    const grid   = agGrid.createGrid(gridEl, gridOptions);
+
+    // -----------------------------------------------------------------------
+    // Custom pagination bar
+    // -----------------------------------------------------------------------
+    const resultInfo = document.getElementById("result-info");
+
+    function renderPagination(total, page, totalPages) {
+        const old = document.getElementById("pager-bar");
+        if (old) old.remove();
+
+        if (totalPages <= 1 && total === 0) {
+            resultInfo.textContent = "No results";
+            return;
+        }
+
+        resultInfo.textContent = `${total.toLocaleString()} entr${total === 1 ? "y" : "ies"} · page ${page} of ${totalPages}`;
+
+        if (totalPages <= 1) return;
+
+        const nav = document.createElement("ul");
+        nav.id = "pager-bar";
+        nav.className = "pager";
+        nav.style.cssText = "margin:8px 0 0; display:inline-flex; gap:6px; list-style:none; padding:0;";
+
+        const prev = document.createElement("li");
+        prev.innerHTML = page > 1
+            ? `<a href="#" class="btn btn-xs btn-default" data-p="${page - 1}">&larr; Prev</a>`
+            : `<span class="btn btn-xs btn-default disabled">&larr; Prev</span>`;
+
+        const next = document.createElement("li");
+        next.innerHTML = page < totalPages
+            ? `<a href="#" class="btn btn-xs btn-default" data-p="${page + 1}">Next &rarr;</a>`
+            : `<span class="btn btn-xs btn-default disabled">Next &rarr;</span>`;
+
+        nav.appendChild(prev);
+        nav.appendChild(next);
+
+        nav.querySelectorAll("a[data-p]").forEach(a => {
+            a.addEventListener("click", e => {
+                e.preventDefault();
+                loadPage(+a.dataset.p);
+            });
+        });
+
+        document.getElementById("search-toolbar").after(nav);
+    }
+
+    // -----------------------------------------------------------------------
+    // Data loading
+    // -----------------------------------------------------------------------
+    function loadPage(page) {
+        currentPage = page;
+        const url = new URL("{{ url_for('web.api_search') }}", window.location.origin);
+        url.searchParams.set("q", currentQuery);
+        url.searchParams.set("page", page);
+        url.searchParams.set("page_size", PAGE_SIZE);
+
+        fetch(url)
+            .then(r => r.json())
+            .then(data => {
+                grid.setGridOption("rowData", data.hits);
+                renderPagination(data.total, data.page, data.total_pages);
+            })
+            .catch(() => {
+                resultInfo.textContent = "Error loading data";
+            });
+    }
+
+    // -----------------------------------------------------------------------
+    // Search controls
+    // -----------------------------------------------------------------------
+    const searchInput = document.getElementById("search-input");
+    const searchBtn   = document.getElementById("search-btn");
+    const clearBtn    = document.getElementById("clear-btn");
+
+    function doSearch() {
+        currentQuery = searchInput.value.trim();
+        clearBtn.style.display = currentQuery ? "" : "none";
+        loadPage(1);
+    }
+
+    searchBtn.addEventListener("click", doSearch);
+    searchInput.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+    clearBtn.addEventListener("click", () => {
+        searchInput.value = "";
+        currentQuery = "";
+        clearBtn.style.display = "none";
+        loadPage(1);
+    });
+
+    // Initial load
+    loadPage(1);
+})();
+</script>
 {% endblock %}
