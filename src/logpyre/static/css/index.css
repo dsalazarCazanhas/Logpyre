@@ -1,0 +1,170 @@
+/* Full-viewport layout — body must not scroll; the grid handles its own scroll */
+html, body { height: 100%; overflow: hidden; }
+
+/* Escape Bootstrap's .container — shell occupies the full width below the navbar */
+#page-shell {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 50px); /* 50px = Bootstrap 3 navbar height */
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+/* Compact page header: title + format badge + timestamp on one line */
+#page-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 10px 0 6px;
+  flex-shrink: 0;
+  border-bottom: 1px solid #e8e8e8;
+  margin-bottom: 8px;
+}
+#page-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1;
+}
+#format-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 3px;
+  background: #31708f;
+  color: #fff;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
+#page-time {
+  color: #aaa;
+  font-size: 12px;
+  margin-left: auto; /* push timestamp to the right */
+}
+
+/* Toolbar: single row, never wraps — pagination sits inline */
+#search-toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-bottom: 8px;
+  flex-shrink: 0;
+}
+#search-toolbar input {
+  width: 380px;
+  flex-shrink: 0;
+}
+#result-info {
+  color: #888;
+  font-size: 12px;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+#pager-inline {
+  display: inline-flex;
+  gap: 3px;
+  margin-left: 2px;
+}
+
+/* Content area: grid + detail panel stacked vertically */
+#content-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Grid fills all space not taken by the detail panel */
+#log-grid {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+/* Hint that rows are clickable */
+.ag-row { cursor: pointer; }
+
+/* Selected row — green outline */
+.ag-row-selected {
+  outline: 2px solid #5cb85c !important;
+  outline-offset: -2px;
+}
+
+/* Detail panel — slides up from the bottom when a row is selected.
+   Height is set programmatically in JS to exactly fit the content,
+   capped at 45vh. CSS only owns the transition and overflow. */
+#detail-panel {
+  flex-shrink: 0;
+  height: 0;
+  overflow: hidden;
+  transition: height 0.2s ease;
+  border-top: 2px solid #337ab7;
+  background: #f9f9f9;
+}
+#detail-panel.is-open {
+  overflow-y: auto;
+}
+
+/* Detail panel header bar */
+#detail-header {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  padding: 5px 12px;
+  background: #337ab7;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 1;
+}
+#detail-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+/* Detail panel key-value table */
+#detail-body { padding-bottom: 4px; }
+.dp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.dp-table tbody tr:nth-child(even) { background: #f0f4f8; }
+.dp-key {
+  width: 150px;
+  padding: 4px 10px;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+  vertical-align: top;
+  border-bottom: 1px solid #e8e8e8;
+}
+.dp-val {
+  padding: 4px 10px;
+  font-family: monospace;
+  font-size: 11px;
+  color: #333;
+  word-break: break-all;
+  vertical-align: top;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+/* Category badges */
+.cat-http    { background: #5cb85c; color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.cat-tls     { background: #f0ad4e; color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.cat-socks4,
+.cat-socks5,
+.cat-rdp     { background: #d9534f; color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+.cat-unknown { background: #777;    color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
+
+/* Status colours */
+.status-ok    { color: #5cb85c; font-weight: 600; }
+.status-redir { color: #31b0d5; font-weight: 600; }
+.status-warn  { color: #ec971f; font-weight: 600; }
+.status-err   { color: #c9302c; font-weight: 600; }
+
+/* Wrap cells: let text flow naturally instead of truncating */
+.cell-wrap { white-space: normal !important; line-height: 1.45; padding: 6px 4px; word-break: break-all; }
