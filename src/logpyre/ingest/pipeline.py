@@ -29,7 +29,7 @@ class IngestResult:
     errors: list[LineError] = field(default_factory=list)
 
 
-def ingest_file(file: IO[bytes], format_name: str) -> IngestResult:
+def ingest_file(file: IO[bytes], format_name: str, project: str) -> IngestResult:
     """Read a log file stream, parse each line with the given format, and index it.
 
     Lines are processed one at a time. A failure on any single line is
@@ -44,6 +44,7 @@ def ingest_file(file: IO[bytes], format_name: str) -> IngestResult:
                      via the Flask request (werkzeug.FileStorage.stream).
         format_name: The ``format_name`` slug of the parser to use (e.g.
                      ``"nginx_combined"``). Auto-detection is bypassed.
+        project:     The project slug to tag documents with (e.g. ``"frontend"``).
 
     Returns:
         An IngestResult with counts and per-line error details.
@@ -60,6 +61,7 @@ def ingest_file(file: IO[bytes], format_name: str) -> IngestResult:
 
         try:
             doc = parse_line_with_format(line, format_name)
+            doc = doc.model_copy(update={"project": project})
             index_document(doc)
             result.indexed += 1
         except Exception as exc:

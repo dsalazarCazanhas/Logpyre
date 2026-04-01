@@ -22,6 +22,11 @@ class BaseLogDocument(BaseModel):
         pattern=r"^[a-z][a-z0-9_]*$",
         description="Parser format slug (e.g. 'nginx_combined'). Used in the index name.",
     )
+    project: str = Field(
+        default="default",
+        pattern=r"^[a-z][a-z0-9_-]*$",
+        description="Project slug (e.g. 'frontend'). Groups related log files into a single namespace.",
+    )
     timestamp: datetime = Field(
         description="Log entry timestamp with timezone.",
     )

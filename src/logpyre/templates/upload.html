@@ -81,6 +81,32 @@
         });
     }
 }());
+
+// Real-time slug validation for the project field.
+(function () {
+    var projectInput = document.getElementById('project');
+    if (!projectInput) return;
+
+    var slugPattern = /^[a-z][a-z0-9_-]*$/;
+
+    var hint = document.createElement('span');
+    hint.className = 'help-block';
+    hint.style.display = 'none';
+    hint.textContent = 'Only lowercase letters, digits, hyphens and underscores. Must start with a letter.';
+    projectInput.parentNode.appendChild(hint);
+
+    projectInput.addEventListener('input', function () {
+        var val = this.value;
+        var formGroup = this.closest('.form-group');
+        var invalid = val !== '' && !slugPattern.test(val);
+        var valid   = val !== '' &&  slugPattern.test(val);
+        if (formGroup) {
+            formGroup.classList.toggle('has-error',   invalid);
+            formGroup.classList.toggle('has-success', valid);
+        }
+        hint.style.display = invalid ? '' : 'none';
+    });
+}());
 </script>
 
 {% if result %}

@@ -26,6 +26,16 @@ html, body { height: 100%; overflow: hidden; }
   margin: 0;
   line-height: 1;
 }
+#project-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 3px;
+  background: #5c4a8f;
+  color: #fff;
+  letter-spacing: 0.03em;
+  vertical-align: middle;
+}
 #format-badge {
   font-size: 11px;
   font-weight: 600;
