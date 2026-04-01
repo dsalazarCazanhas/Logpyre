@@ -1,0 +1,58 @@
+# Logpyre — local development environment
+#
+# Brings up Elasticsearch and the Logpyre web app together.
+# Elasticsearch is isolated inside the `elastic` network and is NOT exposed
+# to the host machine — only Logpyre can reach it.
+#
+# Usage:
+#   cp docker/env.docker docker/.env      # once — edit credentials
+#   docker compose -f docker/compose.yml up --build
+#
+# The Logpyre UI is then available at http://localhost:5000
+
+name: Logpyre-es
+
+services:
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-wolfi:9.3.2
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+    mem_limit: 1GB
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    networks:
+      - elastic
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sk -u elastic:${ELASTIC_PASSWORD:-changeme} https://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+
+  logpyre:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: logpyre
+    env_file:
+      - ${LOGPYRE_ENV_FILE:-env.docker}
+    ports:
+      - "5000:5000"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - elastic
+    restart: unless-stopped
+
+networks:
+  elastic:
+    driver: bridge
+
+volumes:
+  esdata:
+    driver: local

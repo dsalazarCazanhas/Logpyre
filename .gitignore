@@ -1,6 +1,7 @@
 # ── Project-specific ──────────────────────────────────────────────────────────
 # Real secrets — never commit
 .env
+docker/.env
 
 # Uploaded log files processed by the app
 src/indexpy/static/documents/
