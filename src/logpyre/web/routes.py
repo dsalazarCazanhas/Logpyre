@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from ..config import settings
 from ..elastic.client import get_client
 from ..elastic.formats import get_format_metadata, upsert_format_metadata
-from ..elastic.projects import list_projects, project_exists, upsert_project
+from ..elastic.projects import list_projects, project_exists
 from ..elastic.search import PAGE_SIZE, search_logs
 from ..ingest.parser import available_formats, column_defs_for, format_label_for
 from ..ingest.pipeline import IngestResult, ingest_file
@@ -190,10 +190,6 @@ def upload():
         result = ingest_file(stream, chosen_format, project=project_slug)
 
         if result.failed == 0:
-            try:
-                upsert_project(project_slug)
-            except Exception as exc:
-                current_app.logger.warning("Could not register project in index: %s", exc)
             flash(
                 f"{result.indexed} / {result.total} lines indexed into project '{project_slug}'.",
                 "ingest_success",

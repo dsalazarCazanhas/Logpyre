@@ -1,9 +1,4 @@
 import re
-from datetime import datetime, timezone
-
-from flask import current_app
-
-_PROJECTS_INDEX = "logpyre-projects"
 
 # Matches logpyre-{project}-{format}-YYYY.MM.DD
 # Format names use only [a-z0-9_] so the last two segments are unambiguous.
@@ -38,30 +33,6 @@ def project_exists(slug: str) -> bool:
         return any(_DATA_INDEX_RE.match(e["index"]) for e in entries)
     except NotFoundError:
         return False
-
-
-def upsert_project(slug: str, label: str = "") -> None:
-    """Register *slug* in the projects index (idempotent).
-
-    Uses the slug as the document ID so repeated calls are safe — they only
-    update the ``updated_at`` timestamp without creating duplicates.
-
-    Args:
-        slug:  Project slug (e.g. ``"frontend"``).
-        label: Optional human-readable label. Falls back to *slug* when empty.
-    """
-    from .client import get_client
-
-    get_client().index(
-        index=_PROJECTS_INDEX,
-        id=slug,
-        document={
-            "slug": slug,
-            "label": label or slug,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-        },
-    )
-    current_app.logger.debug("Upserted project metadata for %s", slug)
 
 
 def list_projects() -> list[str]:

@@ -371,7 +371,7 @@
                 }
 
                 const projectFromHit = data.hits[0] && data.hits[0].project;
-                if (projectFromHit) {
+                if (currentProject && projectFromHit) {
                     projectBadge.textContent = projectFromHit;
                     projectBadge.style.display = "";
                 } else {
