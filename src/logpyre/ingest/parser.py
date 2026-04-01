@@ -70,6 +70,35 @@ def column_defs_for(format_name: str) -> list[dict]:
     return _PARSERS[0].column_defs if _PARSERS else []
 
 
+def parse_line_with_format(line: str, format_name: str) -> BaseLogDocument:
+    """Parse a single raw log line using a specific parser, bypassing auto-detection.
+
+    Args:
+        line:        A single line from a log file.
+        format_name: The ``format_name`` slug of the parser to use.
+
+    Returns:
+        A BaseLogDocument subclass ready to be indexed in Elasticsearch.
+
+    Raises:
+        ValueError: If the line is empty or the requested format is not registered.
+    """
+    stripped = line.strip()
+
+    if not stripped:
+        raise ValueError("Cannot parse an empty line.")
+
+    for parser in _PARSERS:
+        if parser.format_name == format_name:
+            return parser.parse(stripped)
+
+    registered = [p.format_name for p in _PARSERS]
+    raise ValueError(
+        f"Unknown format {format_name!r}. "
+        f"Registered formats: {registered}."
+    )
+
+
 def format_label_for(format_name: str) -> str:
     """Return the human-readable label for *format_name*.
 

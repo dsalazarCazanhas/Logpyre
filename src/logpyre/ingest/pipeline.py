@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import IO
 
-from .parser import parse_line
+from .parser import parse_line_with_format
 from ..elastic.index import index_document
 
 
@@ -29,8 +29,8 @@ class IngestResult:
     errors: list[LineError] = field(default_factory=list)
 
 
-def ingest_file(file: IO[bytes]) -> IngestResult:
-    """Read a log file stream, parse each line, and index it in Elasticsearch.
+def ingest_file(file: IO[bytes], format_name: str) -> IngestResult:
+    """Read a log file stream, parse each line with the given format, and index it.
 
     Lines are processed one at a time. A failure on any single line is
     recorded in the result but never stops the pipeline — the remaining lines
@@ -40,8 +40,10 @@ def ingest_file(file: IO[bytes]) -> IngestResult:
     do not count toward the total.
 
     Args:
-        file: A readable binary file-like object, typically the file uploaded
-              via the Flask request (werkzeug.FileStorage.stream).
+        file:        A readable binary file-like object, typically the file uploaded
+                     via the Flask request (werkzeug.FileStorage.stream).
+        format_name: The ``format_name`` slug of the parser to use (e.g.
+                     ``"nginx_combined"``). Auto-detection is bypassed.
 
     Returns:
         An IngestResult with counts and per-line error details.
@@ -57,7 +59,7 @@ def ingest_file(file: IO[bytes]) -> IngestResult:
         result.total += 1
 
         try:
-            doc = parse_line(line)
+            doc = parse_line_with_format(line, format_name)
             index_document(doc)
             result.indexed += 1
         except Exception as exc:

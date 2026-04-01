@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, jsonify, render_template, request
 
 from ..elastic.client import get_client
+from ..elastic.formats import get_format_metadata, upsert_format_metadata
 from ..elastic.search import PAGE_SIZE, search_logs
 from ..ingest.parser import available_formats, column_defs_for, format_label_for
 from ..ingest.pipeline import IngestResult, ingest_file
@@ -46,6 +47,13 @@ def api_search():
 
     log_format = result.hits[0].get("log_format", "") if result.hits else ""
 
+    # Try to read rendering metadata from Elasticsearch first.
+    # Fall back to the in-process parser registry for data indexed before the
+    # upsert was introduced, or when ES is ahead of the code.
+    es_meta = get_format_metadata(log_format) if log_format else None
+    resolved_label   = (es_meta or {}).get("format_label") or format_label_for(log_format)
+    resolved_col_defs = (es_meta or {}).get("column_defs") or column_defs_for(log_format)
+
     return jsonify({
         "hits": result.hits,
         "total": result.total,
@@ -54,8 +62,8 @@ def api_search():
         "total_pages": result.total_pages,
         "has_prev": result.has_prev,
         "has_next": result.has_next,
-        "format_label": format_label_for(log_format),
-        "column_defs": column_defs_for(log_format),
+        "format_label": resolved_label,
+        "column_defs": resolved_col_defs,
     })
 
 
@@ -72,10 +80,24 @@ def api_formats():
 @bp.route("/upload", methods=["GET", "POST"])
 def upload():
     form = UploadForm()
+    # Populate format choices from the parser registry on every request so the
+    # SelectField validator accepts them during POST.
+    formats = available_formats()
+    form.log_format.choices = [
+        (f["format_name"], f["format_label"]) for f in formats
+    ]
     result: IngestResult | None = None
 
     if form.validate_on_submit():
-        result = ingest_file(form.log_file.data.stream)
+        chosen_format = form.log_format.data
+        # Persist the format's rendering metadata in ES so the search endpoint
+        # can serve column_defs without relying on the in-process registry.
+        upsert_format_metadata(
+            format_name=chosen_format,
+            format_label=format_label_for(chosen_format),
+            column_defs=column_defs_for(chosen_format),
+        )
+        result = ingest_file(form.log_file.data.stream, chosen_format)
 
     return render_template(
         "upload.html",

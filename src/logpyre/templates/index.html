@@ -54,8 +54,7 @@
     }
 
     // -----------------------------------------------------------------------
-    // Fixed 3-column grid layout — universal for every parser format
-    // The detail panel below handles all parser-specific fields.
+    // Cell renderers — keyed by the "renderer" field in column_defs
     // -----------------------------------------------------------------------
     const categoryRenderer = p => {
         const cat = p.value || "unknown_raw";
@@ -70,46 +69,65 @@
         return `<span class="${cls}">${text}</span>`;
     };
 
-    const GRID_COLUMNS = [
-        {
-            field: "timestamp",
-            headerName: "Timestamp",
-            width: 155,
-            sortable: true,
-            sort: "desc",
-            cellRenderer: p => p.value ? p.value.substring(0, 19).replace("T", " ") : "",
-        },
-        {
-            field: "request_category",
-            headerName: "Category",
-            width: 90,
-            filter: "agTextColumnFilter",
-            cellRenderer: categoryRenderer,
-        },
-        {
-            field: "raw",
-            headerName: "Event",
-            flex: 1,
-            filter: "agTextColumnFilter",
-            wrapText: true,
-            autoHeight: true,
-            cellStyle: { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" },
-        },
-    ];
+    const statusRenderer = p => {
+        if (p.value == null) return "";
+        const s = +p.value;
+        const cls = s < 300 ? "status-ok" : s < 400 ? "status-redir" : s < 500 ? "status-warn" : "status-err";
+        return `<span class="${cls}">${escapeHtml(String(p.value))}</span>`;
+    };
+
+    const RENDERERS = {
+        timestamp: p => p.value ? p.value.substring(0, 19).replace("T", " ") : "",
+        category:  categoryRenderer,
+        status:    statusRenderer,
+        ip:        p => p.value ? `<code>${escapeHtml(p.value)}</code>` : "",
+        method:    p => p.value ? `<strong>${escapeHtml(p.value)}</strong>` : "",
+        path:      p => p.value ? `<span style="font-family:monospace;font-size:11px">${escapeHtml(p.value)}</span>` : "",
+        referer:   p => (!p.value || p.value === "-") ? '<span style="color:#aaa">—</span>' : escapeHtml(p.value),
+        ua:        p => p.value ? `<span style="font-size:11px">${escapeHtml(p.value)}</span>` : "",
+    };
+
+    // -----------------------------------------------------------------------
+    // Build AG Grid columnDefs from the server descriptor array
+    // -----------------------------------------------------------------------
+    function buildColumnDefs(serverDefs) {
+        return serverDefs.map(d => {
+            const col = {
+                field:      d.field,
+                headerName: d.headerName,
+            };
+            if (d.width)    col.width    = d.width;
+            if (d.flex)     col.flex     = d.flex;
+            if (d.minWidth) col.minWidth = d.minWidth;
+            if (d.sortable) col.sortable = true;
+            if (d.sort)     col.sort     = d.sort;
+            if (d.filter)   col.filter   = d.filter;
+            if (d.type)     col.type     = d.type;
+            if (d.wrapText) { col.wrapText = true; col.autoHeight = true; }
+            if (d.renderer && RENDERERS[d.renderer]) {
+                col.cellRenderer = RENDERERS[d.renderer];
+            }
+            // monospace style for path and raw fields
+            if (d.renderer === "path" || d.field === "raw") {
+                col.cellStyle = { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" };
+            }
+            return col;
+        });
+    }
 
     // -----------------------------------------------------------------------
     // State
     // -----------------------------------------------------------------------
     let currentQuery         = "";
     let currentPage          = 1;
-    let columnDefsFromServer = [];  // label map for the detail panel
+    let columnDefsFromServer = [];  // used both to build grid cols and as label map for detail panel
     const PAGE_SIZE          = 50;
 
     // -----------------------------------------------------------------------
-    // Grid
+    // Grid — starts with empty columnDefs; hydrated on first loadPage()
     // -----------------------------------------------------------------------
     const gridOptions = {
-        columnDefs: GRID_COLUMNS,
+        columnDefs: [],
         rowData: [],
         defaultColDef: { resizable: true, sortable: false, filter: false },
         rowSelection: "single",
@@ -224,6 +242,7 @@
             .then(data => {
                 if (data.column_defs && data.column_defs.length) {
                     columnDefsFromServer = data.column_defs;
+                    grid.setGridOption("columnDefs", buildColumnDefs(columnDefsFromServer));
                 }
                 grid.setGridOption("rowData", data.hits);
                 hideDetail();
