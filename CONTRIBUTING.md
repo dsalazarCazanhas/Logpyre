@@ -9,7 +9,7 @@ you need to follow before opening a pull request.
 ## Prerequisites
 
 | Tool | Minimum version | Notes |
-|---|---|---|
+| --- | --- | --- |
 | Python | 3.10 | 3.14 used in CI |
 | Poetry | 1.8 | dependency management and virtual env |
 | Docker | any recent | used to run Elasticsearch locally |
@@ -19,33 +19,37 @@ you need to follow before opening a pull request.
 
 ## Local environment setup
 
+## 1. Clone and install
+
 ```bash
-# 1. Clone and install
 git clone https://github.com/dsalazarCazanhas/indexPy.git
 cd indexPy
 poetry install
-
-# 2. Configure
-cp .env.example .env
-# Open .env and fill in at minimum:
-#   FLASK_SECRET_KEY=<any random string>
-#   ELASTIC_PASSWORD=<password you set when starting ES>
-
-# 3. Start Elasticsearch 8 in Docker (development mode — single node, no heap limit)
-docker run -d --name logpyre-es \
-  -p 9200:9200 \
-  -e "discovery.type=single-node" \
-  -e "ELASTIC_PASSWORD=changeme" \
-  -e "xpack.security.enabled=true" \
-  docker.elastic.co/elasticsearch/elasticsearch:8.14.0
-
-# 4. Run the app
-poetry run flask --app src/logpyre/app.py run --debug --reload
-
-# 5. Verify connectivity
-curl -k https://localhost:5000/health
-# → {"status": "ok"}
 ```
+
+## 2. Configure
+
+`cp .env.example .env`
+
+### Open .env and fill in at minimum
+
+### FLASK_SECRET_KEY=`<any random string>`
+
+### ELASTIC_PASSWORD=`<password you set when starting ES>`
+
+## 3. Start Elasticsearch 8 in Docker (development mode — single node, no heap limit)
+
+```bash
+docker run -d --rm --name elasticsearch -p 9200:9200 --net elastic -m 1GB -e "discovery.type=single-node" -e "ELASTIC_PASSWORD=changeme" elasticsearch:9.3.2
+```
+
+## 4. Run the app
+
+`poetry run flask --app src/logpyre/app.py run --debug --reload`
+
+## 5. Verify connectivity
+
+`curl -k https://localhost:5000/health`
 
 > **TLS note** — Elasticsearch 8 uses self-signed TLS by default. Leave
 > `ELASTIC_CERT_FINGERPRINT` unset in development; the client will skip
@@ -71,7 +75,7 @@ All tests must pass before opening a pull request. Do not bypass hooks with
 
 ## Project layout
 
-```
+```bash
 src/logpyre/
 ├── app.py                  # Application factory (create_app)
 ├── config.py               # pydantic-settings — all env vars live here
@@ -107,7 +111,7 @@ tests/
 
 ### 1. Create the parser module
 
-```
+```bash
 src/logpyre/ingest/parsers/<format_name>.py
 ```
 
@@ -140,7 +144,7 @@ class MyFormatParser:
 `column_defs` key reference:
 
 | Key | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `field` | str | Document field name — **required** |
 | `headerName` | str | Column header label — **required** |
 | `width` | int | Fixed pixel width |
@@ -202,7 +206,7 @@ const RENDERERS = {
 
 Create the test suite at:
 
-```
+```bash
 tests/ingest/parsers/<format_name>/
 ├── __init__.py
 └── test_parser.py
@@ -211,7 +215,7 @@ tests/ingest/parsers/<format_name>/
 Minimum test classes to include (follow the existing suites as templates):
 
 | Class | Tests |
-|---|---|
+| --- | --- |
 | `TestMyFormatParserFormatMetadata` | `format_name`, `format_label`, `column_defs` structure, `doc.log_format` matches parser |
 | `TestMyFormatParserHappyPath` | Every field extracted correctly, types validated |
 | `TestMyFormatParserErrors` | `can_parse` returns False for unrelated lines, `parse` raises `ValueError` on bad input |
@@ -224,19 +228,19 @@ Minimum test classes to include (follow the existing suites as templates):
 
 Branches must follow this pattern:
 
-```
+```git
 <type>/[<scope>-]<short-description>
 ```
 
 | Segment | Values | Example |
-|---|---|---|
+| --- | --- | --- |
 | `type` | `feat`, `fix`, `chore`, `docs`, `refactor`, `test` | `feat` |
 | `scope` | optional — use the **parser format_name** when the work is parser-specific | `parser-apache_combined` |
 | `short-description` | lowercase, hyphen-separated, imperative | `add-method-renderer` |
 
 **Examples:**
 
-```
+```git
 feat/parser-apache_combined-add-parser
 fix/parser-nginx_json-handle-missing-referer
 chore/update-elasticsearch-client

@@ -13,14 +13,14 @@ log_format combined '$remote_addr - $remote_user [$time_local] '
 
 ## Example line
 
-```
+```log
 93.184.216.34 - jdoe [15/Mar/2024:10:22:01 +0000] "GET /index.html HTTP/1.1" 200 1024 "-" "Mozilla/5.0"
 ```
 
 ## Extracted fields
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `timestamp` | datetime (tz-aware) | Parsed from `[DD/Mon/YYYY:HH:MM:SS ±HHMM]` |
 | `remote_addr` | str | Client IP address |
 | `remote_user` | str \| None | Authenticated user; `None` when the log shows `-` |
@@ -44,7 +44,7 @@ in the correct positional order.
 
 Documents produced by this parser are indexed under:
 
-```
+```log
 logpyre-nginx_combined-YYYY.MM.DD
 ```
 

@@ -22,7 +22,7 @@ log_format json_logs escape=json
 ## Extracted fields
 
 | Field | Type | Description |
-|---|---|---|
+| --- | --- | --- |
 | `timestamp` | datetime (tz-aware) | Parsed from `time` key via `datetime.fromisoformat` |
 | `remote_addr` | str | Client IP address |
 | `remote_user` | str \| None | Optional; `None` when absent or empty |
@@ -47,7 +47,7 @@ in the registry.
 
 Documents produced by this parser are indexed under:
 
-```
+```log
 logpyre-nginx_json-YYYY.MM.DD
 ```
 
