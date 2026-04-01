@@ -26,6 +26,11 @@ cp .env.example .env
 poetry run flask --app src/logpyre/app:create_app run --debug
 ```
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, how to add a new
+parser, branch naming conventions, and the pre-PR checklist.
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
