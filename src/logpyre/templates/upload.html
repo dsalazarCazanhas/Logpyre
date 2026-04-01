@@ -11,8 +11,45 @@
 <div class="row">
     <div class="col-md-6">
         {{ wtf.quick_form(form) }}
+        <p id="file-preview" class="text-muted" style="margin-top: 4px; font-size: 0.85em; display: none;">
+            <span class="glyphicon glyphicon-file"></span>
+            <span id="file-preview-name"></span>
+            &nbsp;&middot;&nbsp;
+            <span id="file-preview-size"></span>
+        </p>
+        <p class="text-muted" style="margin-top: 6px; font-size: 0.85em;">
+            <span class="glyphicon glyphicon-info-sign"></span>
+            Maximum file size: <strong>{{ max_upload_mb }} MB</strong>
+        </p>
     </div>
 </div>
+
+<script>
+(function () {
+    function formatBytes(bytes) {
+        if (bytes < 1024)            return bytes + ' B';
+        if (bytes < 1024 * 1024)     return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    var input = document.getElementById('log_file');
+    if (!input) return;
+
+    input.addEventListener('change', function () {
+        var preview = document.getElementById('file-preview');
+        var nameEl  = document.getElementById('file-preview-name');
+        var sizeEl  = document.getElementById('file-preview-size');
+        var file = this.files && this.files[0];
+        if (!file) {
+            preview.style.display = 'none';
+            return;
+        }
+        nameEl.textContent = file.name;
+        sizeEl.textContent = formatBytes(file.size);
+        preview.style.display = 'block';
+    });
+}());
+</script>
 
 {% if result %}
 <div class="row" style="margin-top: 20px;">

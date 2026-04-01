@@ -7,8 +7,8 @@ from .parsers.json_log import JsonLogParser
 # JSON is checked first — detection is cheap (json.loads) and unambiguous.
 # Combined is the fallback for plain-text Nginx logs.
 _PARSERS: list[BaseParser] = [
-    JsonLogParser(),
     CombinedParser(),
+    JsonLogParser(),
 ]
 
 

@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from elasticsearch import ApiError
 from flask import Blueprint, current_app, flash, jsonify, render_template, request
 
+from ..config import settings
 from ..elastic.client import get_client
 from ..elastic.formats import get_format_metadata, upsert_format_metadata
 from ..elastic.search import PAGE_SIZE, search_logs
@@ -94,6 +95,8 @@ def upload():
         (f["format_name"], f["format_label"]) for f in formats
     ]
     result: IngestResult | None = None
+    upload_filename: str | None = None
+    upload_size: int | None = None
 
     if form.validate_on_submit():
         chosen_format = form.log_format.data
@@ -112,14 +115,26 @@ def upload():
                 "upload.html",
                 form=form,
                 result=None,
+                upload_filename=None,
+                upload_size=None,
+                max_upload_mb=settings.max_upload_mb,
                 current_time=datetime.now(timezone.utc),
             )
-        result = ingest_file(form.log_file.data.stream, chosen_format)
+        file_storage = form.log_file.data
+        upload_filename = file_storage.filename
+        stream = file_storage.stream
+        stream.seek(0, 2)
+        upload_size = stream.tell()
+        stream.seek(0)
+        result = ingest_file(stream, chosen_format)
 
     return render_template(
         "upload.html",
         form=form,
         result=result,
+        upload_filename=upload_filename,
+        upload_size=upload_size,
+        max_upload_mb=settings.max_upload_mb,
         current_time=datetime.now(timezone.utc),
     )
 
