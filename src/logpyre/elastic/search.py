@@ -6,8 +6,10 @@ from .client import get_client
 # Default page size for search results.
 PAGE_SIZE = 20
 
-# Index pattern covering all Logpyre indices regardless of format or date.
-_INDEX_PATTERN = "logpyre-*"
+# Index pattern covering all Logpyre log-data indices.
+# Metadata indices (logpyre-formats, logpyre-projects) are excluded explicitly
+# via the negation prefix so they never appear in search results.
+_INDEX_PATTERN = "logpyre-*,-logpyre-formats,-logpyre-projects"
 
 
 @dataclass
@@ -38,20 +40,25 @@ def search_logs(
     query: str = "",
     page: int = 1,
     page_size: int = PAGE_SIZE,
+    project: str | None = None,
 ) -> SearchResult:
-    """Query all Logpyre Nginx indices and return a paginated result.
+    """Query Logpyre indices and return a paginated result.
 
     Args:
         query: Free-text string matched against the ``raw`` field. Pass an
                empty string (or omit) to return all documents.
         page:  1-based page number.
         page_size: Number of hits per page.
+        project: When provided, restrict the search to indices belonging to
+                 this project slug (``logpyre-{project}-*``).
 
     Returns:
         A :class:`SearchResult` with the matching hits and pagination metadata.
     """
     page = max(1, page)
     offset = (page - 1) * page_size
+
+    index_pattern = f"logpyre-{project}-*" if project else _INDEX_PATTERN
 
     es_query = (
         {"match": {"raw": query}}
@@ -60,7 +67,7 @@ def search_logs(
     )
 
     response = get_client().search(
-        index=_INDEX_PATTERN,
+        index=index_pattern,
         query=es_query,
         sort=[{"timestamp": {"order": "desc"}}],
         from_=offset,

@@ -15,11 +15,14 @@
 
   <div id="page-header">
     <h1>Log traces</h1>
+    <span id="project-badge" style="display:none;"></span>
     <span id="format-badge" style="display:none;"></span>
     <span id="page-time">{{ moment(current_time).format('lll') }}</span>
   </div>
 
   <div id="search-toolbar">
+    <select id="project-select" class="form-control input-sm" style="display:none;width:auto;min-width:120px;">
+    </select>
     <input id="search-input" type="text" class="form-control input-sm"
            placeholder="Search raw log line…">
     <button id="search-btn" class="btn btn-primary btn-sm">Search</button>
@@ -130,6 +133,7 @@
     // -----------------------------------------------------------------------
     let currentQuery         = "";
     let currentPage          = 1;
+    let currentProject       = null;  // null = all projects
     let columnDefsFromServer = [];  // used both to build grid cols and as label map for detail panel
     let esIsAlive            = true; // mirrors the health badge; updated via custom event
     let noDataInES           = false; // true when ES has zero documents at all (not a filtered empty)
@@ -157,6 +161,40 @@
     const grid   = agGrid.createGrid(gridEl, gridOptions);
 
     // -----------------------------------------------------------------------
+    // Project selector
+    // -----------------------------------------------------------------------
+    const projectSelect = document.getElementById("project-select");
+
+    function loadProjects() {
+        fetch("{{ url_for('web.api_projects') }}", { cache: "no-store" })
+            .then(r => r.json())
+            .then(projects => {
+                if (projects.length <= 1) {
+                    // 0 or 1 project: hide selector, set currentProject if exactly 1
+                    currentProject = projects.length === 1 ? projects[0] : null;
+                    projectSelect.style.display = "none";
+                    return;
+                }
+                // >1 project: build options and show selector
+                projectSelect.innerHTML =
+                    '<option value="">All projects</option>' +
+                    projects.map(p => `<option value="${p}">${p}</option>`).join("");
+                projectSelect.style.display = "";
+            })
+            .catch(() => {
+                projectSelect.style.display = "none";
+            });
+    }
+
+    projectSelect.addEventListener("change", function () {
+        currentProject = this.value || null;
+        currentQuery = "";
+        searchInput.value = "";
+        clearBtn.style.display = "none";
+        loadPage(1);
+    });
+
+    // -----------------------------------------------------------------------
     // Detail panel
     // -----------------------------------------------------------------------
     const detailPanel = document.getElementById("detail-panel");
@@ -164,7 +202,7 @@
     const detailBody  = document.getElementById("detail-body");
 
     // Fields shown in the grid or purely internal — omit from the detail panel
-    const SKIP_IN_DETAIL = new Set(["raw", "log_format"]);
+    const SKIP_IN_DETAIL = new Set(["raw", "log_format", "project"]);
 
     function buildLabelMap(defs) {
         const map = {};
@@ -237,6 +275,7 @@
     const resultInfo  = document.getElementById("result-info");
     const pagerInline = document.getElementById("pager-inline");
     const formatBadge = document.getElementById("format-badge");
+    const projectBadge = document.getElementById("project-badge");
 
     function renderPagination(total, page, totalPages) {
         if (total === 0) {
@@ -291,6 +330,7 @@
         url.searchParams.set("q", currentQuery);
         url.searchParams.set("page", page);
         url.searchParams.set("page_size", PAGE_SIZE);
+        if (currentProject) url.searchParams.set("project", currentProject);
 
         fetch(url)
             .then(r => {
@@ -328,6 +368,14 @@
                     formatBadge.style.display = "";
                 } else {
                     formatBadge.style.display = "none";
+                }
+
+                const projectFromHit = data.hits[0] && data.hits[0].project;
+                if (currentProject && projectFromHit) {
+                    projectBadge.textContent = projectFromHit;
+                    projectBadge.style.display = "";
+                } else {
+                    projectBadge.style.display = "none";
                 }
 
                 renderPagination(data.total, data.page, data.total_pages);
@@ -382,6 +430,7 @@
         }
     });
 
+    loadProjects();
     loadPage(1);
 })();
 </script>

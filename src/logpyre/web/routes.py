@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 
 from elasticsearch import ApiError
@@ -6,6 +7,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from ..config import settings
 from ..elastic.client import get_client
 from ..elastic.formats import get_format_metadata, upsert_format_metadata
+from ..elastic.projects import list_projects, project_exists
 from ..elastic.search import PAGE_SIZE, search_logs
 from ..ingest.parser import available_formats, column_defs_for, format_label_for
 from ..ingest.pipeline import IngestResult, ingest_file
@@ -22,6 +24,12 @@ def index():
     )
 
 
+@bp.route("/api/projects", methods=["GET"])
+def api_projects():
+    """List all project slugs that have at least one indexed document."""
+    return jsonify(list_projects())
+
+
 @bp.route("/api/search", methods=["GET"])
 def api_search():
     """Return paginated log entries as JSON for the AG Grid frontend.
@@ -36,6 +44,7 @@ def api_search():
     parser when there are no hits.
     """
     q = request.args.get("q", "").strip()
+    project = request.args.get("project", "").strip() or None
     try:
         page = max(1, int(request.args.get("page", 1)))
     except ValueError:
@@ -46,7 +55,7 @@ def api_search():
         page_size = PAGE_SIZE
 
     try:
-        result = search_logs(query=q, page=page, page_size=page_size)
+        result = search_logs(query=q, page=page, page_size=page_size, project=project)
     except ApiError as exc:
         current_app.logger.error("Elasticsearch error in api_search: %s", exc)
         return jsonify({"error": "Elasticsearch is unavailable."}), 503
@@ -100,6 +109,58 @@ def upload():
 
     if form.validate_on_submit():
         chosen_format = form.log_format.data
+        # DataRequired() guarantees project.data is not None here.
+        project_slug: str = form.project.data or ""
+
+        # --- Backend validation (independent of WTForms) ---
+        # 1. Re-verify slug format as a belt-and-suspenders check.
+        if not re.fullmatch(r"[a-z][a-z0-9_-]*", project_slug):
+            form.project.errors = list(form.project.errors) + [
+                "Only lowercase letters, digits, hyphens and underscores. Must start with a letter."
+            ]
+            return render_template(
+                "upload.html",
+                form=form,
+                result=None,
+                upload_filename=None,
+                upload_size=None,
+                max_upload_mb=settings.max_upload_mb,
+                current_time=datetime.now(timezone.utc),
+            )
+
+        # 2. Strict uniqueness: reject if the project is already registered.
+        try:
+            already_exists = project_exists(project_slug)
+        except Exception as exc:
+            current_app.logger.error("Elasticsearch error checking project existence: %s", exc)
+            flash(
+                "Could not reach Elasticsearch — upload aborted. Check the connection and try again.",
+                "danger",
+            )
+            return render_template(
+                "upload.html",
+                form=form,
+                result=None,
+                upload_filename=None,
+                upload_size=None,
+                max_upload_mb=settings.max_upload_mb,
+                current_time=datetime.now(timezone.utc),
+            )
+
+        if already_exists:
+            form.project.errors = list(form.project.errors) + [
+                f"Project '{project_slug}' already exists. Use a unique name to create a new project."
+            ]
+            return render_template(
+                "upload.html",
+                form=form,
+                result=None,
+                upload_filename=None,
+                upload_size=None,
+                max_upload_mb=settings.max_upload_mb,
+                current_time=datetime.now(timezone.utc),
+            )
+
         # Persist the format's rendering metadata in ES so the search endpoint
         # can serve column_defs without relying on the in-process registry.
         try:
@@ -126,11 +187,11 @@ def upload():
         stream.seek(0, 2)
         upload_size = stream.tell()
         stream.seek(0)
-        result = ingest_file(stream, chosen_format)
+        result = ingest_file(stream, chosen_format, project=project_slug)
 
         if result.failed == 0:
             flash(
-                f"{result.indexed} / {result.total} lines indexed successfully.",
+                f"{result.indexed} / {result.total} lines indexed into project '{project_slug}'.",
                 "ingest_success",
             )
             return redirect(url_for("web.index"))
