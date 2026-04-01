@@ -131,6 +131,7 @@
     let currentPage          = 1;
     let columnDefsFromServer = [];  // used both to build grid cols and as label map for detail panel
     let esIsAlive            = true; // mirrors the health badge; updated via custom event
+    let noDataInES           = false; // true when ES has zero documents at all (not a filtered empty)
     const PAGE_SIZE          = 50;
 
     // -----------------------------------------------------------------------
@@ -208,6 +209,7 @@
     const emptyCta   = document.getElementById("empty-cta");
 
     function showEmptyState(isNoData) {
+        noDataInES = isNoData;
         if (isNoData) {
             emptyTitle.textContent = "No logs ingested yet";
             emptySub.textContent   = "Upload a log file to start exploring your traces.";
@@ -219,11 +221,13 @@
         }
         emptyState.classList.add("is-visible");
         gridEl.classList.add("is-hidden");
+        setToolbarDisabled(isNoData);
     }
 
     function hideEmptyState() {
         emptyState.classList.remove("is-visible");
         gridEl.classList.remove("is-hidden");
+        setToolbarDisabled(false);
     }
 
     // -----------------------------------------------------------------------
@@ -335,11 +339,19 @@
     // -----------------------------------------------------------------------
     // Search controls
     // -----------------------------------------------------------------------
-    const searchInput = document.getElementById("search-input");
-    const searchBtn   = document.getElementById("search-btn");
-    const clearBtn    = document.getElementById("clear-btn");
+    const searchInput   = document.getElementById("search-input");
+    const searchBtn     = document.getElementById("search-btn");
+    const clearBtn      = document.getElementById("clear-btn");
+    const searchToolbar = document.getElementById("search-toolbar");
+
+    function setToolbarDisabled(disabled) {
+        searchToolbar.classList.toggle("is-disabled", disabled);
+        searchInput.disabled = disabled;
+        searchBtn.disabled   = disabled;
+    }
 
     function doSearch() {
+        if (noDataInES) return;  // guard: no backend call when ES is empty
         currentQuery = searchInput.value.trim();
         clearBtn.style.display = currentQuery ? "" : "none";
         loadPage(1);

@@ -54,6 +54,12 @@ html, body { height: 100%; overflow: hidden; }
   width: 380px;
   flex-shrink: 0;
 }
+/* Toolbar disabled when there are no documents at all in ES */
+#search-toolbar.is-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+  user-select: none;
+}
 #result-info {
   color: #888;
   font-size: 12px;
