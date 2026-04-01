@@ -4,6 +4,29 @@
 {% block title %}Upload — Logpyre{% endblock %}
 
 {% block page_content %}
+
+{# Full-page blocking overlay shown while ingestion is in progress #}
+<div id="upload-overlay" style="
+    display: none;
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.55);
+    align-items: center; justify-content: center; flex-direction: column;
+    gap: 18px; color: #fff; font-size: 1.1em; text-align: center;">
+    <div style="
+        width: 56px; height: 56px; border-radius: 50%;
+        border: 6px solid rgba(255,255,255,0.25);
+        border-top-color: #fff;
+        animation: spin 0.8s linear infinite;">
+    </div>
+    <div>
+        <strong>Ingesting file&hellip;</strong><br>
+        <small style="opacity:.75;">Please wait, do not close this tab.</small>
+    </div>
+</div>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+
 <div class="page-header">
     <h1>Upload log file</h1>
     <h5>{{ moment(current_time).format('LLLL') }}</h5>
@@ -48,6 +71,15 @@
         sizeEl.textContent = formatBytes(file.size);
         preview.style.display = 'block';
     });
+
+    var form = input.closest('form');
+    if (form) {
+        form.addEventListener('submit', function () {
+            var overlay = document.getElementById('upload-overlay');
+            overlay.style.display = 'flex';
+            /* pointer-events already blocked by the overlay covering the page */
+        });
+    }
 }());
 </script>
 
