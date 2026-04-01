@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from logpyre.ingest.models import NginxLogDocument
 from logpyre.ingest.parser import parse_line
 
 # ---------------------------------------------------------------------------
@@ -32,20 +33,24 @@ class TestDispatcherHappyPath:
 
     def test_dispatches_combined_line(self):
         doc = parse_line(COMBINED_LINE)
+        assert isinstance(doc, NginxLogDocument)
         assert doc.remote_addr == "93.184.216.34"
         assert doc.method == "GET"
 
     def test_dispatches_json_line(self):
         doc = parse_line(JSON_LINE)
+        assert isinstance(doc, NginxLogDocument)
         assert doc.remote_addr == "93.184.216.34"
         assert doc.method == "GET"
 
     def test_combined_line_with_leading_whitespace_is_stripped(self):
         doc = parse_line("  " + COMBINED_LINE)
+        assert isinstance(doc, NginxLogDocument)
         assert doc.remote_addr == "93.184.216.34"
 
     def test_combined_line_with_trailing_newline_is_stripped(self):
         doc = parse_line(COMBINED_LINE + "\n")
+        assert isinstance(doc, NginxLogDocument)
         assert doc.remote_addr == "93.184.216.34"
 
 
