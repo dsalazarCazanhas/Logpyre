@@ -23,7 +23,7 @@ you need to follow before opening a pull request.
 
 ```bash
 git clone https://github.com/dsalazarCazanhas/Logpyre.git
-cd indexPy
+cd Logpyre
 poetry install
 ```
 
