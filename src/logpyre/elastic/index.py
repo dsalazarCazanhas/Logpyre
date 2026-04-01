@@ -1,7 +1,5 @@
 import hashlib
 
-from flask import current_app
-
 from ..ingest.models import BaseLogDocument
 
 
