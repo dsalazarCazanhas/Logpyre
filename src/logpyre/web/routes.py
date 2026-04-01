@@ -39,7 +39,7 @@ def api_search():
     except ValueError:
         page = 1
     try:
-        page_size = max(1, min(500, int(request.args.get("page_size", PAGE_SIZE))))
+        page_size = max(1, min(100, int(request.args.get("page_size", PAGE_SIZE))))
     except ValueError:
         page_size = PAGE_SIZE
 
@@ -74,7 +74,9 @@ def api_formats():
     Returns a JSON array of objects with ``format_name`` and ``format_label``
     keys, in the same order as the parser registry.
     """
-    return jsonify(available_formats())
+    resp = jsonify(available_formats())
+    resp.headers["Cache-Control"] = "public, max-age=300"
+    return resp
 
 
 @bp.route("/upload", methods=["GET", "POST"])
@@ -115,16 +117,12 @@ def health() -> tuple:
     message with HTTP 503 if the cluster is unreachable.
     """
     try:
-        info = get_client().info()
-        return jsonify({
-            "status": "ok",
-            "cluster_name": info["cluster_name"],
-            "version": info["version"]["number"],
-        }), 200
-    except Exception as exc:
+        get_client().info()
+        return jsonify({"status": "ok"}), 200
+    except Exception:
         return jsonify({
             "status": "error",
-            "detail": str(exc),
+            "detail": "Elasticsearch cluster is unreachable.",
         }), 503
 
 

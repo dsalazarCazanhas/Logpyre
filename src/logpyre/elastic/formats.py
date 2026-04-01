@@ -40,9 +40,16 @@ def get_format_metadata(format_name: str) -> dict | None:
     """
     from ..elastic.client import get_client
     from elastic_transport import TransportError
+    from elasticsearch import NotFoundError
 
     try:
         resp = get_client().get(index=_FORMATS_INDEX, id=format_name)
         return resp["_source"]
+    except NotFoundError:
+        return None
     except TransportError:
+        current_app.logger.warning(
+            "Elasticsearch error fetching format metadata for %r — falling back to registry",
+            format_name,
+        )
         return None

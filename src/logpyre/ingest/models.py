@@ -19,6 +19,7 @@ class BaseLogDocument(BaseModel):
     """
 
     log_format: str = Field(
+        pattern=r"^[a-z][a-z0-9_]*$",
         description="Parser format slug (e.g. 'nginx_combined'). Used in the index name.",
     )
     timestamp: datetime = Field(

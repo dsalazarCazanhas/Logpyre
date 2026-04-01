@@ -29,14 +29,12 @@ def create_app(overrides: dict | None = None) -> Flask:
     app.config["ELASTIC_CONNECTIONS_PER_NODE"] = settings.elastic_connections_per_node
     app.config["ELASTIC_REQUEST_TIMEOUT"] = settings.elastic_request_timeout
     app.config["ELASTIC_MAX_RETRIES"] = settings.elastic_max_retries
-
-    if app.config["APP_ENV"] == "development":
-        app.config['TESTING'] = True
+    app.config["MAX_CONTENT_LENGTH"] = settings.max_upload_mb * 1024 * 1024
 
     if overrides:
         app.config.update(overrides)
 
-    CORS(app)
+    CORS(app, origins=settings.allowed_origins)
     Moment(app)
     Bootstrap(app)
 

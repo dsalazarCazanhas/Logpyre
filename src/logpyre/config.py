@@ -90,6 +90,25 @@ class Settings(BaseSettings):
         ),
     )
 
+    # ── Upload ────────────────────────────────────────────────────────────────
+
+    max_upload_mb: int = Field(
+        default=50,
+        ge=1,
+        description="Maximum upload file size in megabytes. Enforced by Flask before the view runs.",
+    )
+
+    # ── CORS ──────────────────────────────────────────────────────────────────
+
+    allowed_origins: list[str] = Field(
+        default=["*"],
+        description=(
+            "Allowed CORS origins. Set via JSON env var: "
+            'ALLOWED_ORIGINS=\'[\"https://logpyre.example.com\"]\'. '
+            "Use \"[\"*\"]\" in development only — rejected in production."
+        ),
+    )
+
     @model_validator(mode="after")
     def validate_production_requirements(self) -> "Settings":
         """Enforce stricter requirements when running in production."""
@@ -101,6 +120,10 @@ class Settings(BaseSettings):
             if self.flask_secret_key == "dev-only-insecure-key":
                 raise ValueError(
                     "FLASK_SECRET_KEY must be changed from the default in production."
+                )
+            if self.allowed_origins == ["*"]:
+                raise ValueError(
+                    "ALLOWED_ORIGINS must be restricted to specific domains in production."
                 )
         else:
             if not self.elastic_cert_fingerprint:
