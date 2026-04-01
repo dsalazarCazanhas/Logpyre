@@ -29,6 +29,15 @@
 
   <div id="content-area">
     <div id="log-grid" class="ag-theme-alpine"></div>
+
+    <div id="empty-state">
+      <img src="{{ url_for('static', filename='img/empty-state.svg') }}"
+           alt="Logpyre — no logs yet" width="260" height="179">
+      <h3 id="empty-title">No logs ingested yet</h3>
+      <p  id="empty-subtitle">Upload a log file to start exploring your traces.</p>
+      <a  id="empty-cta" href="{{ url_for('web.upload') }}" class="btn btn-primary btn-sm">Upload a log file</a>
+    </div>
+
     <div id="detail-panel">
       <div id="detail-header">
         <span id="detail-title">Event detail</span>
@@ -191,6 +200,33 @@
     document.getElementById("detail-close").addEventListener("click", hideDetail);
 
     // -----------------------------------------------------------------------
+    // Empty state
+    // -----------------------------------------------------------------------
+    const emptyState = document.getElementById("empty-state");
+    const emptyTitle = document.getElementById("empty-title");
+    const emptySub   = document.getElementById("empty-subtitle");
+    const emptyCta   = document.getElementById("empty-cta");
+
+    function showEmptyState(isNoData) {
+        if (isNoData) {
+            emptyTitle.textContent = "No logs ingested yet";
+            emptySub.textContent   = "Upload a log file to start exploring your traces.";
+            emptyCta.style.display = "";
+        } else {
+            emptyTitle.textContent = `No results for \u201c${escapeHtml(currentQuery)}\u201d`;
+            emptySub.textContent   = "Try a different search term.";
+            emptyCta.style.display = "none";
+        }
+        emptyState.classList.add("is-visible");
+        gridEl.classList.add("is-hidden");
+    }
+
+    function hideEmptyState() {
+        emptyState.classList.remove("is-visible");
+        gridEl.classList.remove("is-hidden");
+    }
+
+    // -----------------------------------------------------------------------
     // Pagination
     // -----------------------------------------------------------------------
     const resultInfo  = document.getElementById("result-info");
@@ -232,6 +268,7 @@
     // Data loading
     // -----------------------------------------------------------------------
     function showEsDownBanner() {
+        hideEmptyState();
         grid.setGridOption("rowData", []);
         hideDetail();
         pagerInline.innerHTML = "";
@@ -261,6 +298,19 @@
             })
             .then(data => {
                 if (!data) return;
+
+                if (data.total === 0) {
+                    hideDetail();
+                    showEmptyState(currentQuery === "");
+                    formatBadge.style.display = "none";
+                    resultInfo.textContent = currentQuery
+                        ? `No results for \u201c${escapeHtml(currentQuery)}\u201d`
+                        : "";
+                    pagerInline.innerHTML = "";
+                    return;
+                }
+
+                hideEmptyState();
                 if (data.column_defs && data.column_defs.length) {
                     columnDefsFromServer = data.column_defs;
                     grid.setGridOption("columnDefs", buildColumnDefs(columnDefsFromServer));
