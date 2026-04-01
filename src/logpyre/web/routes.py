@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, render_template, request
+from elasticsearch import ApiError
+from flask import Blueprint, current_app, flash, jsonify, render_template, request
 
 from ..elastic.client import get_client
 from ..elastic.formats import get_format_metadata, upsert_format_metadata
@@ -43,7 +44,11 @@ def api_search():
     except ValueError:
         page_size = PAGE_SIZE
 
-    result = search_logs(query=q, page=page, page_size=page_size)
+    try:
+        result = search_logs(query=q, page=page, page_size=page_size)
+    except ApiError as exc:
+        current_app.logger.error("Elasticsearch error in api_search: %s", exc)
+        return jsonify({"error": "Elasticsearch is unavailable."}), 503
 
     log_format = result.hits[0].get("log_format", "") if result.hits else ""
 
@@ -94,11 +99,21 @@ def upload():
         chosen_format = form.log_format.data
         # Persist the format's rendering metadata in ES so the search endpoint
         # can serve column_defs without relying on the in-process registry.
-        upsert_format_metadata(
-            format_name=chosen_format,
-            format_label=format_label_for(chosen_format),
-            column_defs=column_defs_for(chosen_format),
-        )
+        try:
+            upsert_format_metadata(
+                format_name=chosen_format,
+                format_label=format_label_for(chosen_format),
+                column_defs=column_defs_for(chosen_format),
+            )
+        except ApiError as exc:
+            current_app.logger.error("Elasticsearch error saving format metadata: %s", exc)
+            flash("Could not reach Elasticsearch — upload aborted. Check the connection and try again.", "danger")
+            return render_template(
+                "upload.html",
+                form=form,
+                result=None,
+                current_time=datetime.now(timezone.utc),
+            )
         result = ingest_file(form.log_file.data.stream, chosen_format)
 
     return render_template(

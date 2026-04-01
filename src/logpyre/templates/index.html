@@ -121,6 +121,7 @@
     let currentQuery         = "";
     let currentPage          = 1;
     let columnDefsFromServer = [];  // used both to build grid cols and as label map for detail panel
+    let esIsAlive            = true; // mirrors the health badge; updated via custom event
     const PAGE_SIZE          = 50;
 
     // -----------------------------------------------------------------------
@@ -230,7 +231,19 @@
     // -----------------------------------------------------------------------
     // Data loading
     // -----------------------------------------------------------------------
+    function showEsDownBanner() {
+        grid.setGridOption("rowData", []);
+        hideDetail();
+        pagerInline.innerHTML = "";
+        resultInfo.innerHTML =
+            '<span style="color:#d9534f;font-weight:600;">&#9679; Elasticsearch is unreachable — searches are paused.</span>';
+    }
+
     function loadPage(page) {
+        if (!esIsAlive) {
+            showEsDownBanner();
+            return;
+        }
         currentPage = page;
         const url = new URL("{{ url_for('web.api_search') }}", window.location.origin);
         url.searchParams.set("q", currentQuery);
@@ -238,8 +251,16 @@
         url.searchParams.set("page_size", PAGE_SIZE);
 
         fetch(url)
-            .then(r => r.json())
+            .then(r => {
+                if (r.status === 503) {
+                    esIsAlive = false;
+                    showEsDownBanner();
+                    return null;
+                }
+                return r.json();
+            })
             .then(data => {
+                if (!data) return;
                 if (data.column_defs && data.column_defs.length) {
                     columnDefsFromServer = data.column_defs;
                     grid.setGridOption("columnDefs", buildColumnDefs(columnDefsFromServer));
@@ -257,7 +278,7 @@
                 renderPagination(data.total, data.page, data.total_pages);
             })
             .catch(() => {
-                resultInfo.textContent = "Error loading data";
+                showEsDownBanner();
             });
     }
 
@@ -281,6 +302,21 @@
         currentQuery = "";
         clearBtn.style.display = "none";
         loadPage(1);
+    });
+
+    // -----------------------------------------------------------------------
+    // React to health-check events emitted by base.html
+    // -----------------------------------------------------------------------
+    document.addEventListener("esStatusChange", e => {
+        const wasAlive = esIsAlive;
+        esIsAlive = e.detail.state === "alive";
+
+        if (!esIsAlive) {
+            showEsDownBanner();
+        } else if (!wasAlive) {
+            // ES recovered — reload current page automatically
+            loadPage(currentPage);
+        }
     });
 
     loadPage(1);
