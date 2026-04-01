@@ -26,10 +26,11 @@
     <input id="search-input" type="text" class="form-control input-sm"
            placeholder="Search raw log line…">
     <button id="search-btn" class="btn btn-primary btn-sm">Search</button>
-    <button id="clear-btn" class="btn btn-default btn-sm" style="display:none;">Clear</button>
     <span id="result-info"></span>
     <span id="pager-inline"></span>
   </div>
+
+  <div id="filter-tags"></div>
 
   <div id="content-area">
     <div id="log-grid" class="ag-theme-alpine"></div>
@@ -131,7 +132,7 @@
     // -----------------------------------------------------------------------
     // State
     // -----------------------------------------------------------------------
-    let currentQuery         = "";
+    let searchTerms          = [];  // active filter tags
     let currentPage          = 1;
     let currentProject       = null;  // null = all projects
     let columnDefsFromServer = [];  // used both to build grid cols and as label map for detail panel
@@ -188,9 +189,9 @@
 
     projectSelect.addEventListener("change", function () {
         currentProject = this.value || null;
-        currentQuery = "";
+        searchTerms = [];
         searchInput.value = "";
-        clearBtn.style.display = "none";
+        renderTags();
         loadPage(1);
     });
 
@@ -254,7 +255,7 @@
             emptySub.textContent   = "Upload a log file to start exploring your traces.";
             emptyCta.style.display = "";
         } else {
-            emptyTitle.textContent = `No results for \u201c${escapeHtml(currentQuery)}\u201d`;
+            emptyTitle.textContent = `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`;
             emptySub.textContent   = "Try a different search term.";
             emptyCta.style.display = "none";
         }
@@ -327,7 +328,7 @@
         }
         currentPage = page;
         const url = new URL("{{ url_for('web.api_search') }}", window.location.origin);
-        url.searchParams.set("q", currentQuery);
+        searchTerms.forEach(t => url.searchParams.append("q", t));
         url.searchParams.set("page", page);
         url.searchParams.set("page_size", PAGE_SIZE);
         if (currentProject) url.searchParams.set("project", currentProject);
@@ -346,10 +347,10 @@
 
                 if (data.total === 0) {
                     hideDetail();
-                    showEmptyState(currentQuery === "");
+                    showEmptyState(searchTerms.length === 0);
                     formatBadge.style.display = "none";
-                    resultInfo.textContent = currentQuery
-                        ? `No results for \u201c${escapeHtml(currentQuery)}\u201d`
+                    resultInfo.textContent = searchTerms.length
+                        ? `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`
                         : "";
                     pagerInline.innerHTML = "";
                     return;
@@ -390,30 +391,55 @@
     // -----------------------------------------------------------------------
     const searchInput   = document.getElementById("search-input");
     const searchBtn     = document.getElementById("search-btn");
-    const clearBtn      = document.getElementById("clear-btn");
     const searchToolbar = document.getElementById("search-toolbar");
+    const filterTags    = document.getElementById("filter-tags");
 
     function setToolbarDisabled(disabled) {
         searchToolbar.classList.toggle("is-disabled", disabled);
+        filterTags.classList.toggle("is-disabled", disabled);
         searchInput.disabled = disabled;
         searchBtn.disabled   = disabled;
     }
 
+    function renderTags() {
+        const tagHtml = searchTerms.map((t, i) =>
+            `<span class="filter-tag">${escapeHtml(t)}<button class="filter-tag-remove" data-i="${i}" title="Remove filter">&times;</button></span>`
+        ).join("");
+        const clearHtml = searchTerms.length
+            ? `<button class="filter-clear-all">Clear all</button>`
+            : "";
+        filterTags.innerHTML = tagHtml + clearHtml;
+
+        filterTags.querySelectorAll(".filter-tag-remove").forEach(btn => {
+            btn.addEventListener("click", () => {
+                searchTerms.splice(+btn.dataset.i, 1);
+                renderTags();
+                loadPage(1);
+            });
+        });
+        const clearAllBtn = filterTags.querySelector(".filter-clear-all");
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener("click", () => {
+                searchTerms = [];
+                renderTags();
+                loadPage(1);
+            });
+        }
+    }
+
     function doSearch() {
         if (noDataInES) return;  // guard: no backend call when ES is empty
-        currentQuery = searchInput.value.trim();
-        clearBtn.style.display = currentQuery ? "" : "none";
+        const val = searchInput.value.trim();
+        if (val && !searchTerms.includes(val)) {
+            searchTerms.push(val);
+        }
+        searchInput.value = "";
+        renderTags();
         loadPage(1);
     }
 
     searchBtn.addEventListener("click", doSearch);
     searchInput.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
-    clearBtn.addEventListener("click", () => {
-        searchInput.value = "";
-        currentQuery = "";
-        clearBtn.style.display = "none";
-        loadPage(1);
-    });
 
     // -----------------------------------------------------------------------
     // React to health-check events emitted by base.html

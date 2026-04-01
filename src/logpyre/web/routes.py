@@ -35,7 +35,9 @@ def api_search():
     """Return paginated log entries as JSON for the AG Grid frontend.
 
     Query params:
-        q         Free-text search against the raw log line (default: "").
+        q         One or more search terms matched as substrings against the
+                  raw log line.  Repeat the parameter for multiple terms:
+                  ``?q=192.168&q=POST&q=/admin``.  All terms are ANDed.
         page      1-based page number (default: 1).
         page_size Number of rows per page (default: PAGE_SIZE).
 
@@ -43,7 +45,7 @@ def api_search():
     ``log_format`` field of the first hit. Falls back to the first registered
     parser when there are no hits.
     """
-    q = request.args.get("q", "").strip()
+    terms = [t.strip() for t in request.args.getlist("q") if t.strip()]
     project = request.args.get("project", "").strip() or None
     try:
         page = max(1, int(request.args.get("page", 1)))
@@ -55,7 +57,7 @@ def api_search():
         page_size = PAGE_SIZE
 
     try:
-        result = search_logs(query=q, page=page, page_size=page_size, project=project)
+        result = search_logs(terms=terms, page=page, page_size=page_size, project=project)
     except ApiError as exc:
         current_app.logger.error("Elasticsearch error in api_search: %s", exc)
         return jsonify({"error": "Elasticsearch is unavailable."}), 503

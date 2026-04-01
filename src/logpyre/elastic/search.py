@@ -36,8 +36,25 @@ class SearchResult:
         return self.page < self.total_pages
 
 
+def _build_es_query(terms: list[str]) -> dict:
+    """Build an Elasticsearch query from a list of search terms.
+
+    Each term is matched as a case-insensitive substring against the ``raw``
+    field using a wildcard query (``*term*``).  Multiple terms are combined
+    with a boolean AND so only documents containing *all* terms are returned.
+    An empty list produces a ``match_all`` query.
+    """
+    if not terms:
+        return {"match_all": {}}
+    wildcards = [
+        {"wildcard": {"raw.keyword": {"value": f"*{t}*", "case_insensitive": True}}}
+        for t in terms
+    ]
+    return wildcards[0] if len(wildcards) == 1 else {"bool": {"must": wildcards}}
+
+
 def search_logs(
-    query: str = "",
+    terms: list[str] | None = None,
     page: int = 1,
     page_size: int = PAGE_SIZE,
     project: str | None = None,
@@ -45,8 +62,9 @@ def search_logs(
     """Query Logpyre indices and return a paginated result.
 
     Args:
-        query: Free-text string matched against the ``raw`` field. Pass an
-               empty string (or omit) to return all documents.
+        terms: List of search terms matched as case-insensitive substrings
+               against the ``raw`` field.  Multiple terms are ANDed together.
+               Pass ``None`` or an empty list to return all documents.
         page:  1-based page number.
         page_size: Number of hits per page.
         project: When provided, restrict the search to indices belonging to
@@ -60,11 +78,7 @@ def search_logs(
 
     index_pattern = f"logpyre-{project}-*" if project else _INDEX_PATTERN
 
-    es_query = (
-        {"match": {"raw": query}}
-        if query.strip()
-        else {"match_all": {}}
-    )
+    es_query = _build_es_query(terms or [])
 
     response = get_client().search(
         index=index_pattern,
