@@ -10,6 +10,7 @@
 
 {# Override the full content block to bypass Bootstrap's fixed-width .container #}
 {% block content %}
+{{ self.flash_toast() }}
 <div id="page-shell">
 
   <div id="page-header">

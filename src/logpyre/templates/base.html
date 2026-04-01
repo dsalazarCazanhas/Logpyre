@@ -35,6 +35,61 @@
 </div>
 
 <style>
+/* Ingest success toast */
+.logpyre-toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 10000;
+    background: #3c763d;
+    color: #fff;
+    padding: 14px 20px 8px;
+    border-radius: 5px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+    font-size: 0.95em;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 380px;
+    animation: toastIn 0.25s ease;
+    overflow: hidden;
+}
+.logpyre-toast-body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 10px;
+}
+.logpyre-toast-progress {
+    height: 3px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 2px;
+    width: 100%;
+    transform-origin: left;
+    animation: toastProgress 4s linear forwards;
+}
+@keyframes toastProgress {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+.logpyre-toast-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.2em;
+    line-height: 1;
+    margin-left: auto;
+    padding: 0 0 0 12px;
+    cursor: pointer;
+    opacity: 0.75;
+}
+.logpyre-toast-close:hover { opacity: 1; }
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ES health badge */
 .es-status {
     display: inline-flex;
     align-items: center;
@@ -98,16 +153,43 @@
 {% block scripts %}
 {{ super() }}
 {{ moment.include_moment() }}
+<script>
+(function () {
+    var toast = document.querySelector('.logpyre-toast');
+    if (!toast) return;
+    setTimeout(function () {
+        toast.style.transition = 'opacity 0.4s, transform 0.4s';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(12px)';
+        setTimeout(function () { toast.remove(); }, 420);
+    }, 4000);
+})();
+</script>
+{% endblock %}
+
+{% block flash_toast %}
+{%- set _messages = get_flashed_messages(with_categories=True) -%}
+{%- for category, msg in _messages if category == 'ingest_success' %}
+<div class="logpyre-toast" role="alert">
+    <div class="logpyre-toast-body">
+        <span class="glyphicon glyphicon-ok-circle" style="margin-right:7px;"></span>
+        {{ msg }}
+        <button type="button" class="logpyre-toast-close" onclick="this.closest('.logpyre-toast').remove()">&times;</button>
+    </div>
+    <div class="logpyre-toast-progress"></div>
+</div>
+{%- endfor %}
+{%- for category, msg in _messages if category != 'ingest_success' %}
+<div class="alert alert-warning" style="position:fixed;top:70px;right:20px;z-index:9998;min-width:280px;">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    {{ msg }}
+</div>
+{%- endfor %}
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    {% for msg in get_flashed_messages() %}
-    <div class="alert alert-warning">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        {{ msg }}
-    </div>
-    {% endfor %}
+    {{ self.flash_toast() }}
     {% block page_content %}
     <div class="page-header">
         <h1>Logpyre</h1>

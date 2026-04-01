@@ -86,17 +86,10 @@
 {% if result %}
 <div class="row" style="margin-top: 20px;">
     <div class="col-md-8">
-        {% if result.failed == 0 %}
-        <div class="alert alert-success">
-            <strong>Done.</strong>
-            {{ result.indexed }} / {{ result.total }} lines indexed successfully.
-        </div>
-        {% else %}
         <div class="alert alert-warning">
             <strong>Completed with errors.</strong>
             {{ result.indexed }} indexed, {{ result.failed }} failed out of {{ result.total }} lines.
         </div>
-        {% endif %}
 
         {% if result.errors %}
         <h4>Failed lines</h4>

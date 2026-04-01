@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from elasticsearch import ApiError
-from flask import Blueprint, current_app, flash, jsonify, render_template, request
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 
 from ..config import settings
 from ..elastic.client import get_client
@@ -127,6 +127,13 @@ def upload():
         upload_size = stream.tell()
         stream.seek(0)
         result = ingest_file(stream, chosen_format)
+
+        if result.failed == 0:
+            flash(
+                f"{result.indexed} / {result.total} lines indexed successfully.",
+                "ingest_success",
+            )
+            return redirect(url_for("web.index"))
 
     return render_template(
         "upload.html",
