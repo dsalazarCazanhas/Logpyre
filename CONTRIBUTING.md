@@ -22,7 +22,7 @@ you need to follow before opening a pull request.
 ## 1. Clone and install
 
 ```bash
-git clone https://github.com/dsalazarCazanhas/indexPy.git
+git clone https://github.com/dsalazarCazanhas/Logpyre.git
 cd indexPy
 poetry install
 ```
@@ -37,9 +37,10 @@ poetry install
 
 ### ELASTIC_PASSWORD=`<password you set when starting ES>`
 
-## 3. Start Elasticsearch 8 in Docker (development mode — single node, no heap limit)
+## 3. Start Elasticsearch in Docker (development mode — single node, no heap limit)
 
 ```bash
+docker network create elastic
 docker run -d --rm --name elasticsearch -p 9200:9200 --net elastic -m 1GB -e "discovery.type=single-node" -e "ELASTIC_PASSWORD=changeme" elasticsearch:9.3.2
 ```
 
