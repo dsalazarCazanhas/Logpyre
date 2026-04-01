@@ -1,16 +1,463 @@
 {% extends "base.html" %}
-{% import "bootstrap/wtf.html" as wtf %}
 
-{% block title %}Search — Logpyre{% endblock %}
+{% block title %}Traces — Logpyre{% endblock %}
 
-{% block page_content %}
-<div class="page-header">
-    <h1>Search logs</h1>
-    <h5>{{ moment(current_time).format('LLLL') }}</h5>
-</div>
-<div class="row">
-    <div class="col-md-6">
-        {{ wtf.quick_form(form) }}
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+{% endblock %}
+
+{# Override the full content block to bypass Bootstrap's fixed-width .container #}
+{% block content %}
+{{ self.flash_toast() }}
+<div id="page-shell">
+
+  <div id="page-header">
+    <h1>Log traces</h1>
+    <span id="project-badge" style="display:none;"></span>
+    <span id="format-badge" style="display:none;"></span>
+    <span id="page-time">{{ moment(current_time).format('lll') }}</span>
+  </div>
+
+  <div id="search-toolbar">
+    <select id="project-select" class="form-control input-sm" style="display:none;width:auto;min-width:120px;">
+    </select>
+    <input id="search-input" type="text" class="form-control input-sm"
+           placeholder="Search raw log line…">
+    <button id="search-btn" class="btn btn-primary btn-sm">Search</button>
+    <span id="result-info"></span>
+    <span id="pager-inline"></span>
+  </div>
+
+  <div id="filter-tags"></div>
+
+  <div id="content-area">
+    <div id="log-grid" class="ag-theme-alpine"></div>
+
+    <div id="empty-state">
+      <img src="{{ url_for('static', filename='img/empty-state.svg') }}"
+           alt="Logpyre — no logs yet" width="260" height="179">
+      <h3 id="empty-title">No logs ingested yet</h3>
+      <p  id="empty-subtitle">Upload a log file to start exploring your traces.</p>
+      <a  id="empty-cta" href="{{ url_for('web.upload') }}" class="btn btn-primary btn-sm">Upload a log file</a>
     </div>
+
+    <div id="detail-panel">
+      <div id="detail-header">
+        <span id="detail-title">Event detail</span>
+        <button id="detail-close" title="Close">&times;</button>
+      </div>
+      <div id="detail-body"></div>
+    </div>
+  </div>
+
 </div>
+
+<script>
+(function () {
+    // -----------------------------------------------------------------------
+    // Utility
+    // -----------------------------------------------------------------------
+    function escapeHtml(str) {
+        return String(str == null ? "" : str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+    }
+
+    // -----------------------------------------------------------------------
+    // Cell renderers — keyed by the "renderer" field in column_defs
+    // -----------------------------------------------------------------------
+    const categoryRenderer = p => {
+        const cat = p.value || "unknown_raw";
+        const labels = {
+            http:          ["HTTP",   "cat-http"],
+            tls_handshake: ["TLS",    "cat-tls"],
+            socks4:        ["SOCKS4", "cat-socks4"],
+            socks5:        ["SOCKS5", "cat-socks5"],
+            rdp:           ["RDP",    "cat-rdp"],
+        };
+        const [text, cls] = labels[cat] ?? ["RAW", "cat-unknown"];
+        return `<span class="${cls}">${text}</span>`;
+    };
+
+    const statusRenderer = p => {
+        if (p.value == null) return "";
+        const s = +p.value;
+        const cls = s < 300 ? "status-ok" : s < 400 ? "status-redir" : s < 500 ? "status-warn" : "status-err";
+        return `<span class="${cls}">${escapeHtml(String(p.value))}</span>`;
+    };
+
+    const RENDERERS = {
+        timestamp: p => p.value ? p.value.substring(0, 19).replace("T", " ") : "",
+        category:  categoryRenderer,
+        status:    statusRenderer,
+        ip:        p => p.value ? `<code>${escapeHtml(p.value)}</code>` : "",
+        method:    p => p.value ? `<strong>${escapeHtml(p.value)}</strong>` : "",
+        path:      p => p.value ? `<span style="font-family:monospace;font-size:11px">${escapeHtml(p.value)}</span>` : "",
+        referer:   p => (!p.value || p.value === "-") ? '<span style="color:#aaa">—</span>' : escapeHtml(p.value),
+        ua:        p => p.value ? `<span style="font-size:11px">${escapeHtml(p.value)}</span>` : "",
+    };
+
+    // -----------------------------------------------------------------------
+    // Build AG Grid columnDefs from the server descriptor array
+    // -----------------------------------------------------------------------
+    function buildColumnDefs(serverDefs) {
+        return serverDefs.map(d => {
+            const col = {
+                field:      d.field,
+                headerName: d.headerName,
+            };
+            if (d.width)    col.width    = d.width;
+            if (d.flex)     col.flex     = d.flex;
+            if (d.minWidth) col.minWidth = d.minWidth;
+            if (d.sortable) col.sortable = true;
+            if (d.sort)     col.sort     = d.sort;
+            if (d.filter)   col.filter   = d.filter;
+            if (d.type)     col.type     = d.type;
+            if (d.wrapText) { col.wrapText = true; col.autoHeight = true; }
+            if (d.renderer && RENDERERS[d.renderer]) {
+                col.cellRenderer = RENDERERS[d.renderer];
+            }
+            // monospace style for path and raw fields
+            if (d.renderer === "path" || d.field === "raw") {
+                col.cellStyle = { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" };
+            }
+            return col;
+        });
+    }
+
+    // -----------------------------------------------------------------------
+    // State
+    // -----------------------------------------------------------------------
+    let searchTerms          = [];  // active filter tags
+    let currentPage          = 1;
+    let currentProject       = null;  // null = all projects
+    let columnDefsFromServer = [];  // used both to build grid cols and as label map for detail panel
+    let esIsAlive            = true; // mirrors the health badge; updated via custom event
+    let noDataInES           = false; // true when ES has zero documents at all (not a filtered empty)
+    const PAGE_SIZE          = 50;
+
+    // -----------------------------------------------------------------------
+    // Grid — starts with empty columnDefs; hydrated on first loadPage()
+    // -----------------------------------------------------------------------
+    const gridOptions = {
+        columnDefs: [],
+        rowData: [],
+        defaultColDef: { resizable: true, sortable: false, filter: false },
+        rowSelection: "single",
+        onRowClicked: e => showDetail(e.data),
+        pagination: true,
+        paginationPageSize: PAGE_SIZE,
+        suppressPaginationPanel: true,
+        headerHeight: 36,
+        suppressCellFocus: true,
+        enableCellTextSelection: true,
+        animateRows: false,
+    };
+
+    const gridEl = document.getElementById("log-grid");
+    const grid   = agGrid.createGrid(gridEl, gridOptions);
+
+    // -----------------------------------------------------------------------
+    // Project selector
+    // -----------------------------------------------------------------------
+    const projectSelect = document.getElementById("project-select");
+
+    function loadProjects() {
+        fetch("{{ url_for('web.api_projects') }}", { cache: "no-store" })
+            .then(r => r.json())
+            .then(projects => {
+                if (projects.length <= 1) {
+                    // 0 or 1 project: hide selector, set currentProject if exactly 1
+                    currentProject = projects.length === 1 ? projects[0] : null;
+                    projectSelect.style.display = "none";
+                    return;
+                }
+                // >1 project: build options and show selector
+                projectSelect.innerHTML =
+                    '<option value="">All projects</option>' +
+                    projects.map(p => `<option value="${p}">${p}</option>`).join("");
+                projectSelect.style.display = "";
+            })
+            .catch(() => {
+                projectSelect.style.display = "none";
+            });
+    }
+
+    projectSelect.addEventListener("change", function () {
+        currentProject = this.value || null;
+        searchTerms = [];
+        searchInput.value = "";
+        renderTags();
+        loadPage(1);
+    });
+
+    // -----------------------------------------------------------------------
+    // Detail panel
+    // -----------------------------------------------------------------------
+    const detailPanel = document.getElementById("detail-panel");
+    const detailTitle = document.getElementById("detail-title");
+    const detailBody  = document.getElementById("detail-body");
+
+    // Fields shown in the grid or purely internal — omit from the detail panel
+    const SKIP_IN_DETAIL = new Set(["raw", "log_format", "project"]);
+
+    function buildLabelMap(defs) {
+        const map = {};
+        for (const d of defs) map[d.field] = d.headerName;
+        return map;
+    }
+
+    function showDetail(data) {
+        const labels = buildLabelMap(columnDefsFromServer);
+
+        const rows = Object.entries(data)
+            .filter(([k, v]) => !SKIP_IN_DETAIL.has(k) && v !== null && v !== undefined && v !== "")
+            .map(([k, v]) => {
+                const label  = labels[k] || k;
+                const display = typeof v === "object" ? JSON.stringify(v) : String(v);
+                return `<tr>
+                    <td class="dp-key">${escapeHtml(label)}</td>
+                    <td class="dp-val">${escapeHtml(display)}</td>
+                </tr>`;
+            }).join("");
+
+        const ts = data.timestamp ? data.timestamp.substring(0, 19).replace("T", " ") : "";
+        detailTitle.textContent = ts ? `Event — ${ts}` : "Event detail";
+        detailBody.innerHTML = `<table class="dp-table"><tbody>${rows}</tbody></table>`;
+        detailPanel.style.height = Math.round(window.innerHeight * 0.45) + "px";
+        detailPanel.classList.add("is-open");
+    }
+
+    function hideDetail() {
+        detailPanel.style.height = "0";
+        detailPanel.classList.remove("is-open");
+        grid.deselectAll();
+    }
+
+    document.getElementById("detail-close").addEventListener("click", hideDetail);
+
+    // -----------------------------------------------------------------------
+    // Empty state
+    // -----------------------------------------------------------------------
+    const emptyState = document.getElementById("empty-state");
+    const emptyTitle = document.getElementById("empty-title");
+    const emptySub   = document.getElementById("empty-subtitle");
+    const emptyCta   = document.getElementById("empty-cta");
+
+    function showEmptyState(isNoData) {
+        noDataInES = isNoData;
+        if (isNoData) {
+            emptyTitle.textContent = "No logs ingested yet";
+            emptySub.textContent   = "Upload a log file to start exploring your traces.";
+            emptyCta.style.display = "";
+        } else {
+            emptyTitle.textContent = `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`;
+            emptySub.textContent   = "Try a different search term.";
+            emptyCta.style.display = "none";
+        }
+        emptyState.classList.add("is-visible");
+        gridEl.classList.add("is-hidden");
+        setToolbarDisabled(isNoData);
+    }
+
+    function hideEmptyState() {
+        emptyState.classList.remove("is-visible");
+        gridEl.classList.remove("is-hidden");
+        setToolbarDisabled(false);
+    }
+
+    // -----------------------------------------------------------------------
+    // Pagination
+    // -----------------------------------------------------------------------
+    const resultInfo  = document.getElementById("result-info");
+    const pagerInline = document.getElementById("pager-inline");
+    const formatBadge = document.getElementById("format-badge");
+    const projectBadge = document.getElementById("project-badge");
+
+    function renderPagination(total, page, totalPages) {
+        if (total === 0) {
+            resultInfo.textContent = "No results";
+            pagerInline.innerHTML = "";
+            return;
+        }
+
+        resultInfo.textContent =
+            `${total.toLocaleString()} entr${total === 1 ? "y" : "ies"} · page ${page} of ${totalPages}`;
+
+        if (totalPages <= 1) {
+            pagerInline.innerHTML = "";
+            return;
+        }
+
+        const prevHtml = page > 1
+            ? `<a href="#" class="btn btn-xs btn-default" data-p="${page - 1}">&larr;</a>`
+            : `<span class="btn btn-xs btn-default disabled">&larr;</span>`;
+        const nextHtml = page < totalPages
+            ? `<a href="#" class="btn btn-xs btn-default" data-p="${page + 1}">&rarr;</a>`
+            : `<span class="btn btn-xs btn-default disabled">&rarr;</span>`;
+
+        pagerInline.innerHTML = prevHtml + nextHtml;
+        pagerInline.querySelectorAll("a[data-p]").forEach(a => {
+            a.addEventListener("click", e => {
+                e.preventDefault();
+                loadPage(+a.dataset.p);
+            });
+        });
+    }
+
+    // -----------------------------------------------------------------------
+    // Data loading
+    // -----------------------------------------------------------------------
+    function showEsDownBanner() {
+        hideEmptyState();
+        grid.setGridOption("rowData", []);
+        hideDetail();
+        pagerInline.innerHTML = "";
+        resultInfo.innerHTML =
+            '<span style="color:#d9534f;font-weight:600;">&#9679; Elasticsearch is unreachable — searches are paused.</span>';
+    }
+
+    function loadPage(page) {
+        if (!esIsAlive) {
+            showEsDownBanner();
+            return;
+        }
+        currentPage = page;
+        const url = new URL("{{ url_for('web.api_search') }}", window.location.origin);
+        searchTerms.forEach(t => url.searchParams.append("q", t));
+        url.searchParams.set("page", page);
+        url.searchParams.set("page_size", PAGE_SIZE);
+        if (currentProject) url.searchParams.set("project", currentProject);
+
+        fetch(url)
+            .then(r => {
+                if (r.status === 503) {
+                    esIsAlive = false;
+                    showEsDownBanner();
+                    return null;
+                }
+                return r.json();
+            })
+            .then(data => {
+                if (!data) return;
+
+                if (data.total === 0) {
+                    hideDetail();
+                    showEmptyState(searchTerms.length === 0);
+                    formatBadge.style.display = "none";
+                    resultInfo.textContent = searchTerms.length
+                        ? `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`
+                        : "";
+                    pagerInline.innerHTML = "";
+                    return;
+                }
+
+                hideEmptyState();
+                if (data.column_defs && data.column_defs.length) {
+                    columnDefsFromServer = data.column_defs;
+                    grid.setGridOption("columnDefs", buildColumnDefs(columnDefsFromServer));
+                }
+                grid.setGridOption("rowData", data.hits);
+                hideDetail();
+
+                if (data.format_label) {
+                    formatBadge.textContent = data.format_label;
+                    formatBadge.style.display = "";
+                } else {
+                    formatBadge.style.display = "none";
+                }
+
+                const projectFromHit = data.hits[0] && data.hits[0].project;
+                if (currentProject && projectFromHit) {
+                    projectBadge.textContent = projectFromHit;
+                    projectBadge.style.display = "";
+                } else {
+                    projectBadge.style.display = "none";
+                }
+
+                renderPagination(data.total, data.page, data.total_pages);
+            })
+            .catch(() => {
+                showEsDownBanner();
+            });
+    }
+
+    // -----------------------------------------------------------------------
+    // Search controls
+    // -----------------------------------------------------------------------
+    const searchInput   = document.getElementById("search-input");
+    const searchBtn     = document.getElementById("search-btn");
+    const searchToolbar = document.getElementById("search-toolbar");
+    const filterTags    = document.getElementById("filter-tags");
+
+    function setToolbarDisabled(disabled) {
+        searchToolbar.classList.toggle("is-disabled", disabled);
+        filterTags.classList.toggle("is-disabled", disabled);
+        searchInput.disabled = disabled;
+        searchBtn.disabled   = disabled;
+    }
+
+    function renderTags() {
+        const tagHtml = searchTerms.map((t, i) =>
+            `<span class="filter-tag">${escapeHtml(t)}<button class="filter-tag-remove" data-i="${i}" title="Remove filter">&times;</button></span>`
+        ).join("");
+        const clearHtml = searchTerms.length
+            ? `<button class="filter-clear-all">Clear all</button>`
+            : "";
+        filterTags.innerHTML = tagHtml + clearHtml;
+
+        filterTags.querySelectorAll(".filter-tag-remove").forEach(btn => {
+            btn.addEventListener("click", () => {
+                searchTerms.splice(+btn.dataset.i, 1);
+                renderTags();
+                loadPage(1);
+            });
+        });
+        const clearAllBtn = filterTags.querySelector(".filter-clear-all");
+        if (clearAllBtn) {
+            clearAllBtn.addEventListener("click", () => {
+                searchTerms = [];
+                renderTags();
+                loadPage(1);
+            });
+        }
+    }
+
+    function doSearch() {
+        if (noDataInES) return;  // guard: no backend call when ES is empty
+        const val = searchInput.value.trim();
+        if (val && !searchTerms.includes(val)) {
+            searchTerms.push(val);
+        }
+        searchInput.value = "";
+        renderTags();
+        loadPage(1);
+    }
+
+    searchBtn.addEventListener("click", doSearch);
+    searchInput.addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+
+    // -----------------------------------------------------------------------
+    // React to health-check events emitted by base.html
+    // -----------------------------------------------------------------------
+    document.addEventListener("esStatusChange", e => {
+        const wasAlive = esIsAlive;
+        esIsAlive = e.detail.state === "alive";
+
+        if (!esIsAlive) {
+            showEsDownBanner();
+        } else if (!wasAlive) {
+            // ES recovered — reload current page automatically
+            loadPage(currentPage);
+        }
+    });
+
+    loadProjects();
+    loadPage(1);
+})();
+</script>
 {% endblock %}

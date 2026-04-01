@@ -15,11 +15,15 @@ flask-moment = "^1.0"
 flask-bootstrap = "^3.3"
 flask-wtf = "^1.2"
 elasticsearch = "^8.14"
-python-dotenv = "^1.0"
+pydantic-settings = "^2.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0"
 ruff = "^0.4"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
 
 [build-system]
 requires = ["poetry-core"]

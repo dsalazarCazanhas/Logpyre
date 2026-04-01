@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 220" width="320" height="220">
+  <defs>
+    <!--
+      objectBoundingBox gradients: y1="1" = bottom of shape, y2="0" = top.
+      Works correctly whether the path is inside a transformed group or not.
+    -->
+    <linearGradient id="fire" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0"   stop-color="#c0392b"/>
+      <stop offset=".45" stop-color="#e67e22"/>
+      <stop offset="1"   stop-color="#f1c40f"/>
+    </linearGradient>
+    <linearGradient id="core" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0"   stop-color="#e67e22"/>
+      <stop offset="1"   stop-color="#fff176"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Warm ground glow under the flame base -->
+  <ellipse cx="160" cy="178" rx="52" ry="11" fill="#e67e22" opacity=".16"/>
+
+  <!--
+    Flame: same paths as favicon.svg, scaled 5.5× and centered at (160, 110).
+    Transform: move origin to (160,110), scale up, then rebase paths from (16,16).
+    Result: flame tip at (160, 44), base at (160, 176), ~88px wide at widest.
+  -->
+  <g transform="translate(160,110) scale(5.5) translate(-16,-16)">
+    <path d="M16 4 C13 9,8 13,8 18 C8 23,11.5 26.5,16 28 C20.5 26.5,24 23,24 18 C24 13,19 9,16 4Z"
+          fill="url(#fire)"/>
+    <path d="M16 10 C14.5 13,12 15.5,12 19 C12 21.5,13.5 23.5,16 24.5 C18.5 23.5,20 21.5,20 19 C20 15.5,17.5 13,16 10Z"
+          fill="url(#core)" opacity=".7"/>
+  </g>
+
+  <!-- Floating embers around the upper flame -->
+  <circle cx="128" cy="66"  r="2.5" fill="#f39c12" opacity=".55"/>
+  <circle cx="193" cy="60"  r="2"   fill="#f1c40f" opacity=".5"/>
+  <circle cx="118" cy="92"  r="1.5" fill="#e67e22" opacity=".4"/>
+  <circle cx="202" cy="87"  r="2"   fill="#f39c12" opacity=".45"/>
+  <circle cx="133" cy="114" r="1"   fill="#e74c3c" opacity=".35"/>
+
+  <!-- Ghost log lines — logs waiting to be fed to the fire -->
+  <rect x="60"  y="182" width="200" height="8" rx="4" fill="#e8eaf0"/>
+  <rect x="72"  y="194" width="176" height="8" rx="4" fill="#eceef5" opacity=".85"/>
+  <rect x="88"  y="206" width="144" height="8" rx="4" fill="#f0f1f7" opacity=".65"/>
+</svg>

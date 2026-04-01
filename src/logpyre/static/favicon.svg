@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <defs>
+    <!-- Bottom (base of flame) → top (tip): red → orange → yellow -->
+    <linearGradient id="a" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0"   stop-color="#c0392b"/>
+      <stop offset=".45" stop-color="#e67e22"/>
+      <stop offset="1"   stop-color="#f1c40f"/>
+    </linearGradient>
+    <linearGradient id="b" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0"   stop-color="#e67e22"/>
+      <stop offset="1"   stop-color="#fff176"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer flame body: teardrop pointed at top -->
+  <path d="M16 4 C13 9,8 13,8 18 C8 23,11.5 26.5,16 28 C20.5 26.5,24 23,24 18 C24 13,19 9,16 4Z"
+        fill="url(#a)"/>
+  <!-- Inner bright core -->
+  <path d="M16 10 C14.5 13,12 15.5,12 19 C12 21.5,13.5 23.5,16 24.5 C18.5 23.5,20 21.5,20 19 C20 15.5,17.5 13,16 10Z"
+        fill="url(#b)" opacity=".7"/>
+</svg>

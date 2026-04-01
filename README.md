@@ -10,7 +10,7 @@ of a full SIEM deployment.
 
 - **Python 3.10+**
 - **Flask 3** — HTTP layer and server-side templates
-- **Elasticsearch 8** — indexing, storage, and search backend
+- **Elasticsearch 9+** — indexing, storage, and search backend
 
 ## Getting started
 
@@ -23,8 +23,13 @@ cp .env.example .env
 # Edit .env with your Elasticsearch credentials
 
 # 3. Run
-poetry run flask --app src/logpyre/app:create_app run --debug
+flask --app .\src\logpyre\app.py run --debug --reload
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, how to add a new
+parser, branch naming conventions, and the pre-PR checklist.
 
 ## License
 

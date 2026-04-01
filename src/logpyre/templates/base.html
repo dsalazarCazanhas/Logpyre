@@ -4,8 +4,7 @@
 
 {% block head %}
 {{ super() }}
-<link rel="shortcut icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/x-icon">
-<link rel="icon" href="{{ url_for('static', filename='favicon.png') }}" type="image/x-icon">
+<link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
 {% endblock %}
 
 {% block navbar %}
@@ -22,23 +21,175 @@
             <a class="navbar-brand" href="{{ url_for('web.index') }}">Logpyre</a>
             <a class="navbar-brand" href="{{ url_for('web.upload') }}">Upload</a>
         </div>
+        <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav navbar-right">
+                <li class="navbar-text">
+                    <span id="es-status" class="es-status es-status--checking" title="Elasticsearch status">
+                        <span class="es-dot"></span>
+                        <span class="es-label">checking…</span>
+                    </span>
+                </li>
+            </ul>
+        </div>
     </div>
 </div>
+
+<style>
+/* Ingest success toast */
+.logpyre-toast {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    z-index: 10000;
+    background: #3c763d;
+    color: #fff;
+    padding: 14px 20px 8px;
+    border-radius: 5px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.35);
+    font-size: 0.95em;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    max-width: 380px;
+    animation: toastIn 0.25s ease;
+    overflow: hidden;
+}
+.logpyre-toast-body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-bottom: 10px;
+}
+.logpyre-toast-progress {
+    height: 3px;
+    background: rgba(255,255,255,0.85);
+    border-radius: 2px;
+    width: 100%;
+    transform-origin: left;
+    animation: toastProgress 4s linear forwards;
+}
+@keyframes toastProgress {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+}
+.logpyre-toast-close {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.2em;
+    line-height: 1;
+    margin-left: auto;
+    padding: 0 0 0 12px;
+    cursor: pointer;
+    opacity: 0.75;
+}
+.logpyre-toast-close:hover { opacity: 1; }
+@keyframes toastIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ES health badge */
+.es-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 3px 0;
+    transition: color 0.3s;
+}
+.es-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: background-color 0.3s;
+}
+.es-status--checking .es-dot  { background: #888; }
+.es-status--checking .es-label { color: #aaa; }
+.es-status--alive .es-dot     { background: #5cb85c; box-shadow: 0 0 5px #5cb85c99; }
+.es-status--alive .es-label   { color: #5cb85c; }
+.es-status--down .es-dot      { background: #d9534f; box-shadow: 0 0 5px #d9534f99; }
+.es-status--down .es-label    { color: #d9534f; }
+</style>
+
+<script>
+(function () {
+    var badge  = document.getElementById("es-status");
+    var label  = badge.querySelector(".es-label");
+    var HEALTH = "{{ url_for('web.health') }}";
+    /* Interval in ms between health polls. */
+    var POLL_INTERVAL = 15000;
+
+    function setState(state, text) {
+        badge.className = "es-status es-status--" + state;
+        label.textContent = text;
+        document.dispatchEvent(new CustomEvent("esStatusChange", { detail: { state: state } }));
+    }
+
+    function poll() {
+        fetch(HEALTH, { method: "GET", cache: "no-store" })
+            .then(function (r) {
+                if (r.ok) {
+                    setState("alive", "alive");
+                } else {
+                    setState("down", "down");
+                }
+            })
+            .catch(function () {
+                setState("down", "down");
+            });
+    }
+
+    poll();
+    setInterval(poll, POLL_INTERVAL);
+})();
+</script>
 {% endblock %}
 
 {% block scripts %}
 {{ super() }}
 {{ moment.include_moment() }}
+<script>
+(function () {
+    var toast = document.querySelector('.logpyre-toast');
+    if (!toast) return;
+    setTimeout(function () {
+        toast.style.transition = 'opacity 0.4s, transform 0.4s';
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(12px)';
+        setTimeout(function () { toast.remove(); }, 420);
+    }, 4000);
+})();
+</script>
+{% endblock %}
+
+{% block flash_toast %}
+{%- set _messages = get_flashed_messages(with_categories=True) -%}
+{%- for category, msg in _messages if category == 'ingest_success' %}
+<div class="logpyre-toast" role="alert">
+    <div class="logpyre-toast-body">
+        <span class="glyphicon glyphicon-ok-circle" style="margin-right:7px;"></span>
+        {{ msg }}
+        <button type="button" class="logpyre-toast-close" onclick="this.closest('.logpyre-toast').remove()">&times;</button>
+    </div>
+    <div class="logpyre-toast-progress"></div>
+</div>
+{%- endfor %}
+{%- for category, msg in _messages if category != 'ingest_success' %}
+<div class="alert alert-warning" style="position:fixed;top:70px;right:20px;z-index:9998;min-width:280px;">
+    <button type="button" class="close" data-dismiss="alert">&times;</button>
+    {{ msg }}
+</div>
+{%- endfor %}
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    {% for msg in get_flashed_messages() %}
-    <div class="alert alert-warning">
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
-        {{ msg }}
-    </div>
-    {% endfor %}
+    {{ self.flash_toast() }}
     {% block page_content %}
     <div class="page-header">
         <h1>Logpyre</h1>
