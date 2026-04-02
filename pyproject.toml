@@ -10,7 +10,7 @@ packages = [{include = "logpyre", from = "src"}]
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 flask = "^3.0"
-flask-cors = "^4.0"
+flask-cors = "^6.0"
 flask-moment = "^1.0"
 flask-bootstrap = "^3.3"
 flask-wtf = "^1.2"
