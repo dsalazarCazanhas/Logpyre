@@ -31,6 +31,8 @@ flask --app .\src\logpyre\app.py run --debug --reload
 The repository ships a production-ready `Dockerfile` and a local development
 stack in the `docker/` folder.
 
+**`Also`** a docker imagen already built that can be pulled from `dsalazarcazanhas/logpyre:latest`
+
 **`Dockerfile`** — multi-stage build that produces a minimal image:
 - Stage `builder`: resolves dependencies from `poetry.lock` into an in-project
   virtualenv (no network access needed at runtime).
