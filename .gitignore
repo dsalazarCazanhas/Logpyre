@@ -2,7 +2,7 @@
 # Real secrets — never commit
 .env
 docker/.env
-
+.ruff_cache
 # Uploaded log files processed by the app
 src/indexpy/static/documents/
 
