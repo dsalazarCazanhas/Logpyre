@@ -1,4 +1,11 @@
 # ── Project-specific ──────────────────────────────────────────────────────────
+
+# Png files
+*.png
+
+# Playwright MCP trace output (local visual verification, not part of the repo)
+.playwright-mcp/
+
 # Real secrets — never commit
 .env
 docker/.env
