@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from ..config import settings
 from ..elastic.client import get_client
 from ..elastic.formats import get_format_metadata, upsert_format_metadata
-from ..elastic.projects import list_projects, project_exists
+from ..elastic.projects import delete_project, list_projects, project_exists
 from ..elastic.search import PAGE_SIZE, search_logs
 from ..ingest.parser import available_formats, column_defs_for, format_label_for
 from ..ingest.pipeline import IngestResult, ingest_file
@@ -28,6 +28,30 @@ def index():
 def api_projects():
     """List all project slugs that have at least one indexed document."""
     return jsonify(list_projects())
+
+
+@bp.route("/api/projects/<slug>", methods=["DELETE"])
+def api_delete_project(slug):
+    """Delete a project and all of its indexed log data from Elasticsearch.
+
+    This is irreversible — every index matching ``logpyre-{slug}-*`` is
+    dropped. The frontend is expected to confirm with the user before calling
+    this endpoint.
+    """
+    if not re.fullmatch(r"[a-z][a-z0-9_-]*", slug):
+        return jsonify({"error": "Invalid project slug."}), 400
+
+    try:
+        deleted = delete_project(slug)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ApiError as exc:
+        current_app.logger.error("Elasticsearch error deleting project %r: %s", slug, exc)
+        return jsonify({"error": "Elasticsearch is unavailable."}), 503
+
+    if deleted == 0:
+        return jsonify({"error": f"Project '{slug}' not found."}), 404
+    return jsonify({"deleted_indices": deleted}), 200
 
 
 @bp.route("/api/search", methods=["GET"])

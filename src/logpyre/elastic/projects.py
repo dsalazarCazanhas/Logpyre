@@ -6,6 +6,11 @@ _DATA_INDEX_RE = re.compile(
     r"^logpyre-(?P<project>.+)-[a-z][a-z0-9_]*-\d{4}\.\d{2}\.\d{2}$"
 )
 
+# Metadata index names — never valid project slugs. "logpyre-{slug}-*" would
+# otherwise also match "logpyre-formats"/"logpyre-projects" if a project were
+# ever named this way, wiping shared metadata instead of one project's data.
+_RESERVED_SLUGS = {"formats", "projects"}
+
 
 def project_exists(slug: str) -> bool:
     """Return True if *slug* already has at least one data index.
@@ -58,3 +63,49 @@ def list_projects() -> list[str]:
         return sorted(slugs)
     except Exception:
         return []
+
+
+def delete_project(slug: str) -> int:
+    """Delete every data index belonging to *slug* from Elasticsearch.
+
+    Uses the same ``logpyre-{slug}-*`` pattern as :func:`project_exists`, so a
+    project with no matching indices deletes nothing and returns 0 — this is
+    idempotent, not an error.
+
+    Does NOT swallow ES connectivity errors — callers must handle those.
+
+    Args:
+        slug: Project slug to delete.
+
+    Returns:
+        The number of indices deleted.
+
+    Raises:
+        ValueError: If slug is a reserved metadata index name.
+    """
+    if slug in _RESERVED_SLUGS:
+        raise ValueError(f"{slug!r} is a reserved name and cannot be deleted as a project.")
+
+    from .client import get_client
+    from elasticsearch import NotFoundError
+
+    client = get_client()
+    index_pattern = f"logpyre-{slug}-*"
+    try:
+        entries: list[dict[str, str]] = client.cat.indices(  # type: ignore[assignment]
+            index=index_pattern,
+            h="index",
+            format="json",
+        )
+    except NotFoundError:
+        return 0
+
+    count = len(entries)
+    if count:
+        # Elasticsearch's destructive_requires_name safety setting rejects
+        # wildcard deletes (400 "Wildcard expressions ... are not allowed"),
+        # so delete the exact index names resolved above instead of the
+        # pattern itself.
+        index_names = ",".join(e["index"] for e in entries)
+        client.indices.delete(index=index_names, ignore_unavailable=True)
+    return count
