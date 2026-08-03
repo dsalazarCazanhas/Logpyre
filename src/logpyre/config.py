@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # Flask
     flask_secret_key: str = Field(
-        ...,
+        default="dev-only-insecure-key",
         description="Secret key used by Flask to sign sessions and CSRF tokens.",
     )
 
@@ -48,7 +48,7 @@ class Settings(BaseSettings):
         description="Elasticsearch username for basic authentication.",
     )
     elastic_password: str = Field(
-        ...,
+        default="changeme",
         description="Elasticsearch password for basic authentication.",
     )
     elastic_cert_fingerprint: str | None = Field(
@@ -113,13 +113,17 @@ class Settings(BaseSettings):
     def validate_production_requirements(self) -> "Settings":
         """Enforce stricter requirements when running in production."""
         if self.app_env == Environment.PRODUCTION:
-            if not self.elastic_cert_fingerprint:
-                raise ValueError(
-                    "ELASTIC_CERT_FINGERPRINT is required in production."
-                )
             if self.flask_secret_key == "dev-only-insecure-key":
                 raise ValueError(
                     "FLASK_SECRET_KEY must be changed from the default in production."
+                )
+            if self.elastic_password == "changeme":
+                raise ValueError(
+                    "ELASTIC_PASSWORD must be changed from the default in production."
+                )
+            if not self.elastic_cert_fingerprint:
+                raise ValueError(
+                    "ELASTIC_CERT_FINGERPRINT is required in production."
                 )
             if self.allowed_origins == ["*"]:
                 raise ValueError(
