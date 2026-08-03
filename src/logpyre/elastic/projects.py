@@ -26,8 +26,9 @@ def project_exists(slug: str) -> bool:
     Args:
         slug: Project slug to check (e.g. ``"frontend"``).
     """
-    from .client import get_client
     from elasticsearch import NotFoundError
+
+    from .client import get_client
 
     try:
         entries: list[dict[str, str]] = get_client().cat.indices(  # type: ignore[assignment]
@@ -86,8 +87,9 @@ def delete_project(slug: str) -> int:
     if slug in _RESERVED_SLUGS:
         raise ValueError(f"{slug!r} is a reserved name and cannot be deleted as a project.")
 
-    from .client import get_client
     from elasticsearch import NotFoundError
+
+    from .client import get_client
 
     client = get_client()
     index_pattern = f"logpyre-{slug}-*"
