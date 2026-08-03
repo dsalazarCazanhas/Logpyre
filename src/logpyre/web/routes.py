@@ -35,9 +35,11 @@ def api_search():
     """Return paginated log entries as JSON for the AG Grid frontend.
 
     Query params:
-        q         One or more search terms matched as substrings against the
-                  raw log line.  Repeat the parameter for multiple terms:
-                  ``?q=192.168&q=POST&q=/admin``.  All terms are ANDed.
+        q         One or more search terms. A term either matches as a
+                  substring against the raw log line (``?q=192.168``) or, in
+                  ``field:value`` form, filters on that specific field
+                  (``?q=status:404``). Repeat the parameter for multiple
+                  terms: ``?q=status:404&q=POST``. All terms are ANDed.
         page      1-based page number (default: 1).
         page_size Number of rows per page (default: PAGE_SIZE).
 

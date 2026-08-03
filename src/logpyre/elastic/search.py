@@ -1,7 +1,13 @@
+import re
 from dataclasses import dataclass, field
 from math import ceil
 
 from .client import get_client
+
+# Matches "field:value" search terms, e.g. "status:404" or "origin:10.0.0.1".
+# The value must not start with "//" so URLs like "http://example.com" are
+# not misparsed as a field filter (field="http", value="//example.com").
+_FIELD_TERM_RE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*):(?!//)(.+)$")
 
 # Default page size for search results.
 PAGE_SIZE = 20
@@ -36,21 +42,43 @@ class SearchResult:
         return self.page < self.total_pages
 
 
+def _term_query(term: str) -> dict:
+    """Build a query clause for a single search term.
+
+    A term of the form ``field:value`` filters on that specific field
+    (tried both as a keyword-wildcard and as an exact term, to cover both
+    text and numeric fields without knowing the index mapping up front).
+    Any other term is treated as free text and matched as a case-insensitive
+    substring against the ``raw`` field.
+    """
+    match = _FIELD_TERM_RE.match(term)
+    if not match:
+        return {"wildcard": {"raw.keyword": {"value": f"*{term}*", "case_insensitive": True}}}
+
+    field_name, value = match.group(1), match.group(2)
+    return {
+        "bool": {
+            "should": [
+                {"wildcard": {f"{field_name}.keyword": {"value": f"*{value}*", "case_insensitive": True}}},
+                {"term": {field_name: value}},
+            ],
+            "minimum_should_match": 1,
+        }
+    }
+
+
 def _build_es_query(terms: list[str]) -> dict:
     """Build an Elasticsearch query from a list of search terms.
 
-    Each term is matched as a case-insensitive substring against the ``raw``
-    field using a wildcard query (``*term*``).  Multiple terms are combined
-    with a boolean AND so only documents containing *all* terms are returned.
-    An empty list produces a ``match_all`` query.
+    Each term is either a free-text substring match against ``raw`` or a
+    ``field:value`` filter on a specific field — see :func:`_term_query`.
+    Multiple terms are combined with a boolean AND so only documents matching
+    *all* terms are returned. An empty list produces a ``match_all`` query.
     """
     if not terms:
         return {"match_all": {}}
-    wildcards = [
-        {"wildcard": {"raw.keyword": {"value": f"*{t}*", "case_insensitive": True}}}
-        for t in terms
-    ]
-    return wildcards[0] if len(wildcards) == 1 else {"bool": {"must": wildcards}}
+    clauses = [_term_query(t) for t in terms]
+    return clauses[0] if len(clauses) == 1 else {"bool": {"must": clauses}}
 
 
 def search_logs(
