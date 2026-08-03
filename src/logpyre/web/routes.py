@@ -18,9 +18,18 @@ bp = Blueprint("web", __name__)
 
 @bp.route("/", methods=["GET"])
 def index():
+    upload_form = UploadForm()
+    formats = available_formats()
+    upload_form.log_format.choices = [
+        (f["format_name"], f["format_label"]) for f in formats
+    ]
+
     return render_template(
         "index.html",
         current_time=datetime.now(timezone.utc),
+        upload_form=upload_form,
+        upload_formats=formats,
+        max_upload_mb=settings.max_upload_mb,
     )
 
 
