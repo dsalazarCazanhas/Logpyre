@@ -84,6 +84,14 @@
             if (d.type)         col.type         = d.type;
             if (d.pinned)       col.pinned       = d.pinned;
             if (d.tooltipField) col.tooltipField = d.tooltipField;
+            // "raw" wraps and grows the row to fit its full content — the
+            // whole point of the Event column is not losing text at a
+            // glance, so it must accommodate the content instead of the
+            // other way around (Splunk's event list works the same way).
+            if (d.field === "raw") {
+                col.wrapText   = true;
+                col.autoHeight = true;
+            }
 
             const innerRenderer = d.renderer && RENDERERS[d.renderer];
             const filterable    = !NOT_FILTERABLE.has(d.field);
@@ -100,6 +108,12 @@
 
             if (d.renderer === "path" || d.field === "raw") {
                 col.cellStyle = { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" };
+            }
+            if (d.field === "raw") {
+                // overflow-wrap (not word-break: break-all) — only breaks a
+                // word mid-character when it wouldn't fit on its own line,
+                // instead of breaking eagerly wherever a line gets tight.
+                Object.assign(col.cellStyle, { overflowWrap: "anywhere" });
             }
             return col;
         });
