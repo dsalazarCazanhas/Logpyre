@@ -10,7 +10,7 @@ you need to follow before opening a pull request.
 
 | Tool | Minimum version | Notes |
 | --- | --- | --- |
-| Python | 3.10 | 3.14 used in CI |
+| Python | 3.10 | 3.12 used in CI |
 | Poetry | 1.8 | dependency management and virtual env |
 | Docker | any recent | used to run Elasticsearch locally |
 | Git | any recent | |
@@ -29,7 +29,7 @@ poetry install
 
 ## 2. Configure
 
-`cp .env.example .env`
+`cp example.env .env`
 
 ### Open .env and fill in at minimum
 
