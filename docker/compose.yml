@@ -1,11 +1,11 @@
-# Logpyre — local development environment
+# Logpyre — local integration-test stack, NOT a production deployment.
 #
-# Brings up Elasticsearch and builds the Logpyre web app together.
-# Elasticsearch is isolated inside the `elastic` network and is NOT exposed
-# to the host machine — only Logpyre can reach it.
+# Brings up Elasticsearch and builds the Logpyre web app together so the
+# real Dockerfile can be exercised end to end. Elasticsearch is also exposed
+# on the host (9200) for local debugging.
 #
 # Usage:
-#   cp docker/env.docker docker/.env      # once — edit credentials
+#   cp docker/docker.env docker/.env      # once — edit credentials
 #   docker compose -f docker/compose.yml up --build
 #
 # The Logpyre UI is then available at http://localhost:5000
@@ -41,7 +41,11 @@ services:
       dockerfile: Dockerfile
     container_name: logpyre
     env_file:
-      - ${LOGPYRE_ENV_FILE:-docker.env}
+      # .env is the gitignored file with your real credentials (see Usage
+      # above). docker.env is only the committed placeholder template — it
+      # must never be the default here, or `docker compose up` silently
+      # starts with "changeme" instead of whatever you put in docker/.env.
+      - ${LOGPYRE_ENV_FILE:-.env}
     ports:
       - "5000:5000"
     depends_on:
