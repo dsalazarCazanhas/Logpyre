@@ -13,26 +13,6 @@
     // -----------------------------------------------------------------------
     // Cell renderers — keyed by the "renderer" field in column_defs
     // -----------------------------------------------------------------------
-    const categoryRenderer = p => {
-        const cat = p.value || "unknown_raw";
-        const labels = {
-            http:          ["HTTP",   "cat-http"],
-            tls_handshake: ["TLS",    "cat-tls"],
-            socks4:        ["SOCKS4", "cat-socks4"],
-            socks5:        ["SOCKS5", "cat-socks5"],
-            rdp:           ["RDP",    "cat-rdp"],
-        };
-        const [text, cls] = labels[cat] ?? ["RAW", "cat-unknown"];
-        return `<span class="${cls}">${text}</span>`;
-    };
-
-    const statusRenderer = p => {
-        if (p.value == null) return "";
-        const s = +p.value;
-        const cls = s < 300 ? "status-ok" : s < 400 ? "status-redir" : s < 500 ? "status-warn" : "status-err";
-        return `<span class="${cls}">${escapeHtml(String(p.value))}</span>`;
-    };
-
     // Correlating logs across sources only works if the timezone is explicit —
     // silently dropping the offset (as a naive substring(0, 19) would) makes
     // "10:22:01" ambiguous whenever the ingested files don't all share one tz.
@@ -43,14 +23,11 @@
         return offsetMatch ? `${datePart} ${offsetMatch[0]}` : datePart;
     };
 
+    // Timestamp is the only field still rendered through this map — every
+    // other field the grid used to show (category/status/ip/method/path/ua)
+    // is detail-panel-only since the Splunk-style Timestamp+Event redesign.
     const RENDERERS = {
         timestamp: timestampRenderer,
-        category:  categoryRenderer,
-        status:    statusRenderer,
-        ip:        p => p.value ? `<code>${escapeHtml(p.value)}</code>` : "",
-        method:    p => p.value ? `<strong>${escapeHtml(p.value)}</strong>` : "",
-        path:      p => p.value ? `<span style=\"font-family:monospace;font-size:11px\">${escapeHtml(p.value)}</span>` : "",
-        ua:        p => p.value ? `<span style="font-size:11px">${escapeHtml(p.value)}</span>` : "",
     };
 
     // -----------------------------------------------------------------------
@@ -106,10 +83,8 @@
                 return `<span class="cell-value">${inner}</span>${filterIconHtml(d.field, p.value)}`;
             };
 
-            if (d.renderer === "path" || d.field === "raw") {
-                col.cellStyle = { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" };
-            }
             if (d.field === "raw") {
+                col.cellStyle = { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" };
                 // overflow-wrap (not word-break: break-all) — only breaks a
                 // word mid-character when it wouldn't fit on its own line,
                 // instead of breaking eagerly wherever a line gets tight.

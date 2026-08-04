@@ -193,20 +193,6 @@ html, body { height: 100%; overflow: hidden; }
   overflow-y: auto;
 }
 
-/* Category badges */
-.cat-http    { background: #5cb85c; color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
-.cat-tls     { background: #f0ad4e; color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
-.cat-socks4,
-.cat-socks5,
-.cat-rdp     { background: #d9534f; color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
-.cat-unknown { background: #777;    color: #fff; padding: 2px 7px; border-radius: 3px; font-size: 11px; font-weight: 600; }
-
-/* Status colours */
-.status-ok    { color: #5cb85c; font-weight: 600; }
-.status-redir { color: #31b0d5; font-weight: 600; }
-.status-warn  { color: #ec971f; font-weight: 600; }
-.status-err   { color: #c9302c; font-weight: 600; }
-
 /* Filter-by-value icon: hidden until the cell is hovered */
 .ag-cell-wrapper { position: relative; }
 .cell-filter-btn {
