@@ -9,6 +9,11 @@ from .client import get_client
 # not misparsed as a field filter (field="http", value="//example.com").
 _FIELD_TERM_RE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*):(?!//)(.+)$")
 
+# Must match raw_ngram_analyzer's min_gram in elastic/index_template.py — a
+# query shorter than this produces zero trigrams, which turns the `match`
+# query below into a no-op (matches nothing) rather than an error.
+_MIN_SUBSTRING_LEN = 3
+
 # Default page size for search results.
 PAGE_SIZE = 20
 
@@ -48,12 +53,24 @@ def _term_query(term: str) -> dict:
     A term of the form ``field:value`` filters on that specific field
     (tried both as a keyword-wildcard and as an exact term, to cover both
     text and numeric fields without knowing the index mapping up front).
-    Any other term is treated as free text and matched as a case-insensitive
-    substring against the ``raw`` field.
+
+    Any other term is treated as free text and matched as a substring
+    anywhere in the ``raw`` field, via a `match` query with `operator: and`
+    against the trigram-indexed `raw` field (see elastic/index_template.py)
+    — every overlapping trigram of the search term must be present, which is
+    only true if the term appears as a contiguous substring somewhere in the
+    line. This replaces a leading-wildcard query (`wildcard raw.keyword:
+    *term*`), which can't use Elasticsearch's term-dictionary index and
+    scans the entire term dictionary on every search — the worst-case query
+    shape in Elasticsearch, and the default one for this tool's most common
+    action. Terms shorter than the analyzer's min_gram fall back to the old
+    wildcard query, since they'd otherwise match nothing.
     """
     match = _FIELD_TERM_RE.match(term)
     if not match:
-        return {"wildcard": {"raw.keyword": {"value": f"*{term}*", "case_insensitive": True}}}
+        if len(term) < _MIN_SUBSTRING_LEN:
+            return {"wildcard": {"raw.keyword": {"value": f"*{term}*", "case_insensitive": True}}}
+        return {"match": {"raw": {"query": term, "operator": "and"}}}
 
     field_name, value = match.group(1), match.group(2)
     return {
