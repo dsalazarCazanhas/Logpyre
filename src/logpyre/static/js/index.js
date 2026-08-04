@@ -118,12 +118,19 @@
         defaultColDef: { resizable: true, sortable: false, filter: false },
         rowSelection: "single",
         onRowClicked: e => showDetail(e.data),
+        // Cell focus stays on (no suppressCellFocus) so arrow keys/Tab can
+        // reach a row at all; Enter/Space then open the same detail panel
+        // onRowClicked does on click — otherwise the grid's one interaction
+        // (open a row's detail) would be mouse-only.
+        onCellKeyDown: e => {
+            const key = e.event?.key;
+            if (key === "Enter" || key === " ") showDetail(e.data);
+        },
         pagination: true,
         paginationPageSize: PAGE_SIZE,
         suppressPaginationPanel: true,
         headerHeight: 36,
         rowHeight: 30,
-        suppressCellFocus: true,
         enableCellTextSelection: true,
         animateRows: false,
     };
@@ -554,6 +561,40 @@
         }
     });
 
+    // -----------------------------------------------------------------------
+    // Modal accessibility: Escape-to-close + focus trap, shared by both
+    // custom modals below (upload, delete-project) since neither uses the
+    // native <dialog> element and its built-in behavior.
+    // -----------------------------------------------------------------------
+    function trapFocus(modalEl, event) {
+        const focusable = modalEl.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function setupModalA11y(modalEl, onClose) {
+        if (!modalEl) return;
+        modalEl.addEventListener('keydown', event => {
+            if (!modalEl.classList.contains('is-visible')) return;
+            if (event.key === 'Escape') {
+                event.stopPropagation();
+                onClose();
+            } else if (event.key === 'Tab') {
+                trapFocus(modalEl, event);
+            }
+        });
+    }
+
     const uploadModal      = document.getElementById('upload-modal');
     const closeUploadBtns  = [
       document.querySelector('.upload-modal-close'),
@@ -603,6 +644,7 @@
       if (!uploadModal) return;
       uploadModal.classList.add('is-visible');
       uploadModal.setAttribute('aria-hidden', 'false');
+      if (selectFileBtn) selectFileBtn.focus();
     }
 
     function closeUploadModal() {
@@ -610,6 +652,8 @@
       uploadModal.classList.remove('is-visible');
       uploadModal.setAttribute('aria-hidden', 'true');
     }
+
+    setupModalA11y(uploadModal, closeUploadModal);
 
     const uploadForm = document.getElementById('upload-form');
     if (uploadForm) {
@@ -709,6 +753,8 @@
         deleteModal.classList.remove('is-visible');
         deleteModal.setAttribute('aria-hidden', 'true');
     }
+
+    setupModalA11y(deleteModal, closeDeleteProjectModal);
 
     if (deleteModalInput) {
         deleteModalInput.addEventListener('input', () => {

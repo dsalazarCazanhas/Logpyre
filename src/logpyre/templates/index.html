@@ -48,7 +48,7 @@
 
   <div id="filter-tags"></div>
 
-  <div id="upload-modal" aria-hidden="true">
+  <div id="upload-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Upload log file">
     <div class="upload-modal-card">
       <button type="button" class="upload-modal-close" aria-label="Close modal">&times;</button>
       <div class="upload-modal-body">
@@ -86,10 +86,10 @@
     </div>
   </div>
 
-  <div id="delete-project-modal" aria-hidden="true">
+  <div id="delete-project-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="delete-project-title">
     <div class="confirm-modal-card">
       <button type="button" class="confirm-modal-close" aria-label="Close modal">&times;</button>
-      <h3 class="confirm-modal-title">Delete project</h3>
+      <h3 class="confirm-modal-title" id="delete-project-title">Delete project</h3>
       <p class="confirm-modal-body-text">
         This permanently deletes <strong id="delete-project-name"></strong> and all of its logs
         from Elasticsearch. This action cannot be undone.
@@ -120,7 +120,7 @@
     <div id="detail-panel">
       <div id="detail-header">
         <span id="detail-title">Event detail</span>
-        <button id="detail-close" title="Close">&times;</button>
+        <button id="detail-close" title="Close" aria-label="Close">&times;</button>
       </div>
       <div id="detail-body"></div>
     </div>
