@@ -7,7 +7,7 @@ from flask import Blueprint, current_app, flash, jsonify, redirect, render_templ
 from ..config import settings
 from ..elastic.client import get_client
 from ..elastic.formats import get_format_metadata, upsert_format_metadata
-from ..elastic.projects import list_projects, project_exists
+from ..elastic.projects import delete_project, list_projects, project_exists
 from ..elastic.search import PAGE_SIZE, search_logs
 from ..ingest.parser import available_formats, column_defs_for, format_label_for
 from ..ingest.pipeline import IngestResult, ingest_file
@@ -18,9 +18,18 @@ bp = Blueprint("web", __name__)
 
 @bp.route("/", methods=["GET"])
 def index():
+    upload_form = UploadForm()
+    formats = available_formats()
+    upload_form.log_format.choices = [
+        (f["format_name"], f["format_label"]) for f in formats
+    ]
+
     return render_template(
         "index.html",
         current_time=datetime.now(timezone.utc),
+        upload_form=upload_form,
+        upload_formats=formats,
+        max_upload_mb=settings.max_upload_mb,
     )
 
 
@@ -30,14 +39,40 @@ def api_projects():
     return jsonify(list_projects())
 
 
+@bp.route("/api/projects/<slug>", methods=["DELETE"])
+def api_delete_project(slug):
+    """Delete a project and all of its indexed log data from Elasticsearch.
+
+    This is irreversible — every index matching ``logpyre-{slug}-*`` is
+    dropped. The frontend is expected to confirm with the user before calling
+    this endpoint.
+    """
+    if not re.fullmatch(r"[a-z][a-z0-9_-]*", slug):
+        return jsonify({"error": "Invalid project slug."}), 400
+
+    try:
+        deleted = delete_project(slug)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except ApiError as exc:
+        current_app.logger.error("Elasticsearch error deleting project %r: %s", slug, exc)
+        return jsonify({"error": "Elasticsearch is unavailable."}), 503
+
+    if deleted == 0:
+        return jsonify({"error": f"Project '{slug}' not found."}), 404
+    return jsonify({"deleted_indices": deleted}), 200
+
+
 @bp.route("/api/search", methods=["GET"])
 def api_search():
     """Return paginated log entries as JSON for the AG Grid frontend.
 
     Query params:
-        q         One or more search terms matched as substrings against the
-                  raw log line.  Repeat the parameter for multiple terms:
-                  ``?q=192.168&q=POST&q=/admin``.  All terms are ANDed.
+        q         One or more search terms. A term either matches as a
+                  substring against the raw log line (``?q=192.168``) or, in
+                  ``field:value`` form, filters on that specific field
+                  (``?q=status:404``). Repeat the parameter for multiple
+                  terms: ``?q=status:404&q=POST``. All terms are ANDed.
         page      1-based page number (default: 1).
         page_size Number of rows per page (default: PAGE_SIZE).
 

@@ -10,7 +10,7 @@ of a full SIEM deployment.
 
 - **Python 3.10+**
 - **Flask 3** — HTTP layer and server-side templates
-- **Elasticsearch 9+** — indexing, storage, and search backend
+- **Elasticsearch 9.3.2 (wolfi)** — indexing, storage, and search backend
 
 ## Getting started
 
@@ -28,10 +28,19 @@ flask --app .\src\logpyre\app.py run --debug --reload
 
 ## Docker
 
-The repository ships a production-ready `Dockerfile` and a local development
-stack in the `docker/` folder.
+The repository ships a production-ready `Dockerfile` and a `docker/compose.yml`
+file for local integration testing.
 
-**`Also`** a docker imagen already built that can be pulled from `dsalazarcazanhas/logpyre:latest`
+**Local development** should be done with Flask directly on your PC:
+
+```bash
+poetry install
+cp env.example .env
+# edit .env with your Elasticsearch credentials
+flask --app src/logpyre.app run --debug --reload
+```
+
+**Production image** is built from the root `Dockerfile`.
 
 **`Dockerfile`** — multi-stage build that produces a minimal image:
 - Stage `builder`: resolves dependencies from `poetry.lock` into an in-project
@@ -39,20 +48,21 @@ stack in the `docker/` folder.
 - Stage `runtime`: slim Python image, non-root user, Gunicorn as the WSGI
   server. Workers are configurable via `GUNICORN_WORKERS` (default: 2).
 
-**`docker/compose.yml`** — brings up the full stack with a single command:
-- `elasticsearch` — Elasticsearch 9 single-node, memory-capped at 1 GB, **not**
-  exposed to the host (internal network only).
-- `logpyre` — built from the `Dockerfile`, available at `http://localhost:5000`,
-  waits for Elasticsearch to be healthy before starting.
+**`docker/compose.yml`** — integration test stack that builds the same
+`Dockerfile` used for production and verifies the full app + Elasticsearch
+locally.
 
 ```bash
-# 1. Create your local env file (gitignored)
 cp docker/env.docker docker/.env
-
-# 2. Edit docker/.env — at minimum change ELASTIC_PASSWORD and FLASK_SECRET_KEY
-
-# 3. Start the stack
+# edit docker/.env if needed
 docker compose -f docker/compose.yml up --build
+```
+
+To build the production image for CI or publishing:
+
+```bash
+docker build -t dsalazarcazanhas/logpyre:latest .
+docker push dsalazarcazanhas/logpyre:latest
 ```
 
 To enable TLS verification (recommended for production), extract the

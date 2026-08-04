@@ -1,6 +1,6 @@
 # Logpyre — local development environment
 #
-# Brings up Elasticsearch and the Logpyre web app together.
+# Brings up Elasticsearch and builds the Logpyre web app together.
 # Elasticsearch is isolated inside the `elastic` network and is NOT exposed
 # to the host machine — only Logpyre can reach it.
 #
@@ -25,6 +25,8 @@ services:
       - esdata:/usr/share/elasticsearch/data
     networks:
       - elastic
+    ports:
+      - "9200:9200"
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -sk -u elastic:${ELASTIC_PASSWORD:-changeme} https://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
@@ -34,10 +36,12 @@ services:
       retries: 5
 
   logpyre:
-    image: dsalazarcazanhas/logpyre:latest
+    build:
+      context: ../
+      dockerfile: Dockerfile
     container_name: logpyre
     env_file:
-      - ${LOGPYRE_ENV_FILE:-env.docker}
+      - ${LOGPYRE_ENV_FILE:-docker.env}
     ports:
       - "5000:5000"
     depends_on:
