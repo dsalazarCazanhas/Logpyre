@@ -92,9 +92,13 @@ html, body { height: 100%; overflow: hidden; }
   flex-direction: column;
 }
 
-/* Grid fills all space not taken by the detail panel */
+/* Grid fills most of the space not taken by the detail panel — AG Grid's own
+   theme CSS sizes .ag-root-wrapper to 100% of this container, which reads as
+   cramped with zero breathing room below it. Capping the basis at 95% (still
+   flex-shrink: 1 so the detail panel can still take more room when open)
+   leaves a small gap instead. */
 #log-grid {
-  flex: 1;
+  flex: 0 1 95%;
   min-height: 0;
   width: 100%;
 }
@@ -306,6 +310,65 @@ html, body { height: 100%; overflow: hidden; }
   color: #333;
   border-color: #aaa;
 }
+/* ── Activity panel: daily volume chart + method/path facets ─────────────── */
+#activity-panel {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding: 10px 0 14px;
+  flex-shrink: 0;
+}
+#activity-chart-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 160px;
+}
+/* One boxed, independently-scrolling list mixing every facet field's top
+   values (method + path), ranked by count — splitting them into a box per
+   field just meant picking one filter from column A and another from column
+   B, which added width without adding anything practical. Capped to the
+   chart's own height so both sit level. */
+#activity-facets {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 190px;
+  gap: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 5px;
+  border: 1px solid #e5e5e5;
+  border-radius: 6px;
+  background: #fafafa;
+}
+.activity-facet-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  background: #eef1f5;
+  color: #333;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+}
+.activity-facet-badge:hover { background: #e0e5eb; }
+.activity-facet-badge .activity-facet-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.activity-facet-badge .activity-facet-count {
+  color: #888;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
 /* ── Project picker: custom dropdown replacing the native <select> ──────── */
 .project-picker {
   position: relative;

@@ -6,6 +6,9 @@
 <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@36.0.2/dist/ag-grid-community.min.js"
         integrity="sha384-4P7t+1WzUk9bbgIHEl6gh2Pg3BIKScCBPmHKP61ggNasjwYnpFzttAAv1uKoYiHh"
         crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+        integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+        crossorigin="anonymous"></script>
 <script src="{{ url_for('static', filename='js/shared.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/index.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/datetime.js') }}" defer></script>
@@ -17,7 +20,7 @@
 
 {% include "_upload_overlay.html" %}
 
-<div id="page-shell" data-api-projects-url="{{ url_for('web.api_projects') }}" data-api-search-url="{{ url_for('web.api_search') }}">
+<div id="page-shell" data-api-projects-url="{{ url_for('web.api_projects') }}" data-api-search-url="{{ url_for('web.api_search') }}" data-api-analytics-url="{{ url_for('web.api_analytics') }}">
 
   <div id="page-header">
     <span id="project-label" class="project-label">All projects</span>
@@ -41,6 +44,13 @@
   </div>
 
   <div id="filter-tags"></div>
+
+  <div id="activity-panel" class="hidden">
+    <div id="activity-chart-wrap">
+      <canvas id="activity-chart" height="160"></canvas>
+    </div>
+    <div id="activity-facets"></div>
+  </div>
 
   <div id="upload-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Upload log file">
     <div class="upload-modal-card">

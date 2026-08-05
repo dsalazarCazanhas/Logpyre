@@ -106,8 +106,9 @@
     const PAGE_SIZE          = 50;
 
     const pageShell      = document.getElementById('page-shell');
-    const apiProjectsUrl = pageShell?.dataset.apiProjectsUrl || null;
-    const apiSearchUrl   = pageShell?.dataset.apiSearchUrl || null;
+    const apiProjectsUrl  = pageShell?.dataset.apiProjectsUrl || null;
+    const apiSearchUrl    = pageShell?.dataset.apiSearchUrl || null;
+    const apiAnalyticsUrl = pageShell?.dataset.apiAnalyticsUrl || null;
 
     // -----------------------------------------------------------------------
     // Grid — starts with empty columnDefs; hydrated on first loadPage()
@@ -396,6 +397,87 @@
         resultInfo.innerHTML =
             '<span style="color:#d9534f;font-weight:600;">&#9679; Elasticsearch is unreachable — searches are paused.</span>';
         setToolbarDisabled(true);
+        activityPanel.classList.add("hidden");
+    }
+
+    // -----------------------------------------------------------------------
+    // Activity panel: daily volume chart + method/path facet badges.
+    // Prototype scope (nginx_combined only) — facets simply come back empty
+    // for formats without method/path fields, so the panel just stays hidden.
+    // -----------------------------------------------------------------------
+    const activityPanel  = document.getElementById("activity-panel");
+    const activityCanvas = document.getElementById("activity-chart");
+    const activityFacets = document.getElementById("activity-facets");
+    let activityChart = null;
+
+    // One ranked list mixing every facet field's top values instead of a
+    // box per field — picking "method" from one box and "path" from
+    // another wasn't meaningfully different from picking both off one
+    // combined, count-sorted list, and the single box gives the chart back
+    // the width the per-field split used to take.
+    function renderFacetBadges(container, fieldBuckets) {
+        const items = fieldBuckets
+            .flatMap(({ field, buckets }) => buckets.map(b => ({ field, value: String(b.value), count: b.count })))
+            .sort((a, b) => b.count - a.count);
+
+        container.innerHTML = items.map(item =>
+            `<button type="button" class="activity-facet-badge" data-filter-field="${escapeHtml(item.field)}" data-filter-value="${escapeHtml(item.value)}" title="${escapeHtml(item.value)}"><span class="activity-facet-value">${escapeHtml(item.value)}</span><span class="activity-facet-count">${item.count}</span></button>`
+        ).join("");
+        container.querySelectorAll(".activity-facet-badge").forEach(btn => {
+            btn.addEventListener("click", () => addFieldFilter(btn.dataset.filterField, btn.dataset.filterValue));
+        });
+    }
+
+    function renderActivityChart(dailyCounts) {
+        const labels = dailyCounts.map(d => d.date);
+        const counts = dailyCounts.map(d => d.count);
+
+        if (activityChart) {
+            activityChart.data.labels = labels;
+            activityChart.data.datasets[0].data = counts;
+            activityChart.update();
+            return;
+        }
+
+        activityChart = new Chart(activityCanvas, {
+            type: "bar",
+            data: { labels, datasets: [{ data: counts, backgroundColor: "#f59e0b" }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxRotation: 0 } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                },
+                onClick: (evt, elements) => {
+                    if (!elements.length) return;
+                    addFieldFilter("timestamp", activityChart.data.labels[elements[0].index]);
+                },
+            },
+        });
+    }
+
+    function loadAnalytics() {
+        if (!apiAnalyticsUrl || !esIsAlive) return;
+        const url = new URL(apiAnalyticsUrl, window.location.origin);
+        searchTerms.forEach(t => url.searchParams.append("q", t));
+        if (currentProject) url.searchParams.set("project", currentProject);
+
+        fetch(url)
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => {
+                if (!data) return;
+                const hasData = data.daily_counts.length || data.method_counts.length || data.path_counts.length;
+                activityPanel.classList.toggle("hidden", !hasData);
+                if (!hasData) return;
+                renderActivityChart(data.daily_counts);
+                renderFacetBadges(activityFacets, [
+                    { field: "method", buckets: data.method_counts },
+                    { field: "path", buckets: data.path_counts },
+                ]);
+            })
+            .catch(() => {});
     }
 
     function loadPage(page) {
@@ -404,6 +486,12 @@
             return;
         }
         currentPage = page;
+        // Page 1 always corresponds to a fresh search/filter change (initial
+        // load, project switch, added/removed filter) — pager clicks to
+        // other pages don't change what's filtered, so only refresh the
+        // activity panel here rather than on every page turn.
+        if (page === 1) loadAnalytics();
+
         const url = new URL(apiSearchUrl, window.location.origin);
         searchTerms.forEach(t => url.searchParams.append("q", t));
         url.searchParams.set("page", page);
