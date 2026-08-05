@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import IO
 
-from .parser import parse_line_with_format
 from ..elastic.index import index_document
+from .parser import parse_line_with_format
 
 
 @dataclass

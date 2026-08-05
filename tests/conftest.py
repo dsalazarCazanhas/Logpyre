@@ -7,7 +7,6 @@ regardless of whether a .env file is present.
 """
 import os
 
-
 # Set required env vars before any module is imported.
 # These values are test-only and never used for real connections.
 os.environ.setdefault("FLASK_SECRET_KEY", "test-secret-key")

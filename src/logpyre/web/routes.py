@@ -2,7 +2,16 @@ import re
 from datetime import datetime, timezone
 
 from elasticsearch import ApiError
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from ..config import settings
 from ..elastic.client import get_client
