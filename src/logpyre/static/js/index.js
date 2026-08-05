@@ -327,12 +327,11 @@
         if (isNoData) {
             emptyTitle.textContent = "No logs ingested yet";
             emptySub.textContent   = "Upload a log file to start exploring your traces.";
-            emptyCta.style.display = "";
         } else {
             emptyTitle.textContent = `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`;
             emptySub.textContent   = "Try a different search term.";
-            emptyCta.style.display = "none";
         }
+        emptyCta.classList.toggle("hidden", !isNoData);
         emptyState.classList.add("is-visible");
         gridEl.classList.add("is-hidden");
         setToolbarDisabled(isNoData);
@@ -426,7 +425,7 @@
                 if (data.total === 0) {
                     hideDetail();
                     showEmptyState(searchTerms.length === 0);
-                    formatBadge.style.display = "none";
+                    formatBadge.classList.add("hidden");
                     resultInfo.textContent = searchTerms.length
                         ? `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`
                         : "";
@@ -444,9 +443,9 @@
 
                 if (data.format_label) {
                     formatBadge.textContent = data.format_label;
-                    formatBadge.style.display = "";
+                    formatBadge.classList.remove("hidden");
                 } else {
-                    formatBadge.style.display = "none";
+                    formatBadge.classList.add("hidden");
                 }
 
                 renderPagination(data.total, data.page, data.total_pages);
@@ -631,10 +630,7 @@
         if (clearFileBtn) clearFileBtn.classList.add('hidden');
         return;
       }
-      const size = file.size < 1024 ? `${file.size} B`
-        : file.size < 1024 * 1024 ? `${(file.size / 1024).toFixed(1)} KB`
-        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
-      fileMeta.textContent = `${file.name} · ${size}`;
+      fileMeta.textContent = `${file.name} · ${window.Logpyre.formatBytes(file.size)}`;
       fileMeta.classList.remove('upload-file-meta--empty');
       fileMeta.classList.add('upload-file-meta--valid');
       if (clearFileBtn) clearFileBtn.classList.remove('hidden');
@@ -657,10 +653,7 @@
 
     const uploadForm = document.getElementById('upload-form');
     if (uploadForm) {
-      uploadForm.addEventListener('submit', function () {
-        const overlay = document.getElementById('upload-overlay');
-        if (overlay) overlay.classList.add('is-visible');
-      });
+      uploadForm.addEventListener('submit', () => window.Logpyre.showUploadOverlay());
     }
 
     closeUploadBtns.forEach(btn => btn.addEventListener('click', closeUploadModal));

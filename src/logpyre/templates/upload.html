@@ -5,14 +5,7 @@
 
 {% block page_content %}
 
-{# Full-page blocking overlay shown while ingestion is in progress #}
-<div id="upload-overlay">
-    <div class="upload-spinner"></div>
-    <div>
-        <strong>Ingesting file&hellip;</strong><br>
-        <small class="upload-overlay-help">Please wait, do not close or refresh this tab.</small>
-    </div>
-</div>
+{% include "_upload_overlay.html" %}
 
 <div class="page-header">
     <h1>Upload log file</h1>
@@ -34,6 +27,7 @@
     </div>
 </div>
 
+<script src="{{ url_for('static', filename='js/shared.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/upload.js') }}" defer></script>
 
 {% if result %}
