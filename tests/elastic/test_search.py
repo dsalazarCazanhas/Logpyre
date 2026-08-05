@@ -1,6 +1,13 @@
 from unittest.mock import MagicMock, patch
 
-from logpyre.elastic.search import _build_es_query, _term_query, get_analytics
+from logpyre.elastic.search import (
+    PAGE_SIZE,
+    SearchResult,
+    _build_es_query,
+    _term_query,
+    get_analytics,
+    search_logs,
+)
 
 
 def test_term_query_free_text_uses_raw_ngram_match():
@@ -135,3 +142,133 @@ def test_get_analytics_defaults_to_empty_buckets_when_aggregations_missing():
     assert result.daily_counts == []
     assert result.method_counts == []
     assert result.path_counts == []
+
+
+def _es_response(hits: list[dict], total: int) -> dict:
+    return {
+        "hits": {
+            "hits": [{"_source": h} for h in hits],
+            "total": {"value": total},
+        }
+    }
+
+
+class TestSearchLogs:
+
+    def test_maps_hits_and_total_from_the_es_response(self):
+        client = MagicMock()
+        client.search.return_value = _es_response(
+            [{"raw": "line one"}, {"raw": "line two"}], total=2
+        )
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            result = search_logs()
+
+        assert result.hits == [{"raw": "line one"}, {"raw": "line two"}]
+        assert result.total == 2
+
+    def test_defaults_to_page_1_and_module_page_size(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            result = search_logs()
+
+        assert result.page == 1
+        assert result.page_size == PAGE_SIZE
+        call_kwargs = client.search.call_args.kwargs
+        assert call_kwargs["from_"] == 0
+        assert call_kwargs["size"] == PAGE_SIZE
+
+    def test_computes_offset_from_page_and_page_size(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            search_logs(page=3, page_size=10)
+
+        assert client.search.call_args.kwargs["from_"] == 20
+
+    def test_non_positive_page_is_clamped_to_1(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            result = search_logs(page=0)
+            assert result.page == 1
+            search_logs(page=-5)
+
+        assert client.search.call_args.kwargs["from_"] == 0
+
+    def test_project_filter_scopes_the_index_pattern(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            search_logs(project="frontend")
+
+        assert client.search.call_args.kwargs["index"] == "logpyre-frontend-*"
+
+    def test_no_project_searches_every_data_index(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            search_logs()
+
+        index_pattern = client.search.call_args.kwargs["index"]
+        assert index_pattern == "logpyre-*,-logpyre-formats,-logpyre-projects"
+
+    def test_terms_are_translated_into_the_es_query(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            search_logs(terms=["status:404"])
+
+        assert client.search.call_args.kwargs["query"] == _build_es_query(["status:404"])
+
+    def test_no_terms_defaults_to_match_all(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            search_logs(terms=None)
+
+        assert client.search.call_args.kwargs["query"] == {"match_all": {}}
+
+    def test_sorts_by_timestamp_descending(self):
+        client = MagicMock()
+        client.search.return_value = _es_response([], total=0)
+
+        with patch("logpyre.elastic.search.get_client", return_value=client):
+            search_logs()
+
+        assert client.search.call_args.kwargs["sort"] == [{"timestamp": {"order": "desc"}}]
+
+
+class TestSearchResultPagination:
+
+    def test_total_pages_is_1_when_there_are_no_hits(self):
+        result = SearchResult(total=0, page_size=20)
+        assert result.total_pages == 1
+
+    def test_total_pages_rounds_up_for_a_partial_last_page(self):
+        result = SearchResult(total=21, page_size=20)
+        assert result.total_pages == 2
+
+    def test_has_prev_is_false_on_the_first_page(self):
+        result = SearchResult(total=100, page=1, page_size=20)
+        assert result.has_prev is False
+
+    def test_has_prev_is_true_past_the_first_page(self):
+        result = SearchResult(total=100, page=2, page_size=20)
+        assert result.has_prev is True
+
+    def test_has_next_is_true_before_the_last_page(self):
+        result = SearchResult(total=100, page=1, page_size=20)
+        assert result.has_next is True
+
+    def test_has_next_is_false_on_the_last_page(self):
+        result = SearchResult(total=100, page=5, page_size=20)
+        assert result.has_next is False
