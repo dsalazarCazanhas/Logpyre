@@ -269,8 +269,8 @@ the scope segment so pull requests are immediately identifiable by format.
 ### Before opening a PR
 
 ```bash
-poetry run pytest -v          # all tests must pass
-poetry run ruff check src/    # no linting errors
+poetry run pytest -v    # all tests must pass
+poetry run ruff check .  # no linting errors (same command CI runs)
 ```
 
 ---

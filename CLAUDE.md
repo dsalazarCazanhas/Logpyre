@@ -18,7 +18,7 @@ poetry run pytest -v
 poetry run pytest tests/ingest/parsers/nginx_combined/test_parser.py -v
 
 # Lint
-poetry run ruff check src/
+poetry run ruff check .
 ```
 
 ## Architecture
