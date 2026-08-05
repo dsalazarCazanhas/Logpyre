@@ -38,9 +38,10 @@ def get_format_metadata(format_name: str) -> dict | None:
         A dict with ``format_name``, ``format_label``, and ``column_defs`` keys,
         or ``None`` if the document does not exist.
     """
-    from ..elastic.client import get_client
     from elastic_transport import TransportError
     from elasticsearch import NotFoundError
+
+    from ..elastic.client import get_client
 
     try:
         resp = get_client().get(index=_FORMATS_INDEX, id=format_name)

@@ -1,7 +1,7 @@
 from flask import Flask
+from flask_bootstrap import Bootstrap
 from flask_cors import CORS
 from flask_moment import Moment
-from flask_bootstrap import Bootstrap
 
 from .config import settings
 from .elastic.client import init_elastic

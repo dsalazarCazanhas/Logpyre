@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .request_classifier import RequestCategory
 
@@ -16,7 +16,15 @@ class BaseLogDocument(BaseModel):
     The ``log_format`` field is used as part of the Elasticsearch index name
     (``logpyre-{log_format}-YYYY.MM.DD``), so querying or managing data by
     format is trivial without any additional metadata.
+
+    ``validate_assignment`` is on so that setting ``doc.project = ...`` after
+    parsing (see ``ingest.pipeline.ingest_file``) re-runs the ``project``
+    field's pattern validator — plain attribute assignment would otherwise
+    silently skip it, and ``project`` ends up in the Elasticsearch index name
+    (``logpyre-{project}-{log_format}-YYYY.MM.DD``).
     """
+
+    model_config = ConfigDict(validate_assignment=True)
 
     log_format: str = Field(
         pattern=r"^[a-z][a-z0-9_]*$",

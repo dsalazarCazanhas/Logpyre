@@ -9,6 +9,22 @@ from .client import get_client
 # not misparsed as a field filter (field="http", value="//example.com").
 _FIELD_TERM_RE = re.compile(r"^([a-zA-Z_][a-zA-Z0-9_]*):(?!//)(.+)$")
 
+# Matches a bare calendar date, e.g. "2026-08-03" — used to recognise
+# "timestamp:2026-08-03" as a day-range filter rather than an exact-value
+# filter (a `term`/`wildcard` match against a `date`-mapped field never
+# matches, since dates have no `.keyword` subfield and don't equal a
+# truncated string). Anything else (e.g. "timestamp:12:00:00", already
+# covered by existing tests) falls through to the generic field:value path.
+_DATE_ONLY_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+# Top-N facet values returned per field by get_analytics().
+_FACET_SIZE = 10
+
+# Must match raw_ngram_analyzer's min_gram in elastic/index_template.py — a
+# query shorter than this produces zero trigrams, which turns the `match`
+# query below into a no-op (matches nothing) rather than an error.
+_MIN_SUBSTRING_LEN = 3
+
 # Default page size for search results.
 PAGE_SIZE = 20
 
@@ -48,14 +64,37 @@ def _term_query(term: str) -> dict:
     A term of the form ``field:value`` filters on that specific field
     (tried both as a keyword-wildcard and as an exact term, to cover both
     text and numeric fields without knowing the index mapping up front).
-    Any other term is treated as free text and matched as a case-insensitive
-    substring against the ``raw`` field.
+
+    Any other term is treated as free text and matched as a substring
+    anywhere in the ``raw`` field, via a `match` query with `operator: and`
+    against the trigram-indexed `raw` field (see elastic/index_template.py)
+    — every overlapping trigram of the search term must be present, which is
+    only true if the term appears as a contiguous substring somewhere in the
+    line. This replaces a leading-wildcard query (`wildcard raw.keyword:
+    *term*`), which can't use Elasticsearch's term-dictionary index and
+    scans the entire term dictionary on every search — the worst-case query
+    shape in Elasticsearch, and the default one for this tool's most common
+    action. Terms shorter than the analyzer's min_gram fall back to the old
+    wildcard query, since they'd otherwise match nothing.
     """
     match = _FIELD_TERM_RE.match(term)
     if not match:
-        return {"wildcard": {"raw.keyword": {"value": f"*{term}*", "case_insensitive": True}}}
+        if len(term) < _MIN_SUBSTRING_LEN:
+            return {"wildcard": {"raw.keyword": {"value": f"*{term}*", "case_insensitive": True}}}
+        return {"match": {"raw": {"query": term, "operator": "and"}}}
 
     field_name, value = match.group(1), match.group(2)
+    if field_name == "timestamp" and _DATE_ONLY_RE.match(value):
+        return {
+            "range": {
+                "timestamp": {
+                    "gte": f"{value}||/d",
+                    "lt": f"{value}||+1d/d",
+                    "format": "yyyy-MM-dd",
+                }
+            }
+        }
+
     return {
         "bool": {
             "should": [
@@ -79,6 +118,73 @@ def _build_es_query(terms: list[str]) -> dict:
         return {"match_all": {}}
     clauses = [_term_query(t) for t in terms]
     return clauses[0] if len(clauses) == 1 else {"bool": {"must": clauses}}
+
+
+@dataclass
+class AnalyticsResult:
+    """Aggregated volume-by-day plus top method/path facets for the activity panel."""
+
+    daily_counts: list[dict] = field(default_factory=list)
+    method_counts: list[dict] = field(default_factory=list)
+    path_counts: list[dict] = field(default_factory=list)
+
+
+def get_analytics(
+    terms: list[str] | None = None,
+    project: str | None = None,
+) -> AnalyticsResult:
+    """Aggregate log volume by day, plus top method/path facets.
+
+    Respects the same ``terms``/``project`` filters as :func:`search_logs`, so
+    the activity panel reflects whatever is currently filtered rather than
+    always showing the full dataset. Prototype scope: ``method``/``path`` are
+    ``nginx_combined``-specific fields — other formats that lack them simply
+    get empty facet buckets back, since Elasticsearch treats an unmapped
+    field in a terms aggregation as contributing no values rather than erroring.
+
+    Args:
+        terms: Same semantics as :func:`search_logs`.
+        project: Same semantics as :func:`search_logs`.
+
+    Returns:
+        An :class:`AnalyticsResult` with daily counts and top facet values.
+    """
+    index_pattern = f"logpyre-{project}-*" if project else _INDEX_PATTERN
+    es_query = _build_es_query(terms or [])
+
+    response = get_client().search(
+        index=index_pattern,
+        query=es_query,
+        size=0,
+        aggs={
+            "daily_counts": {
+                "date_histogram": {
+                    "field": "timestamp",
+                    "calendar_interval": "day",
+                    "format": "yyyy-MM-dd",
+                }
+            },
+            "method_counts": {"terms": {"field": "method.keyword", "size": _FACET_SIZE}},
+            "path_counts": {"terms": {"field": "path.keyword", "size": _FACET_SIZE}},
+        },
+        ignore_unavailable=True,
+    )
+
+    aggs = response.get("aggregations", {})
+    daily_counts = [
+        {"date": bucket["key_as_string"], "count": bucket["doc_count"]}
+        for bucket in aggs.get("daily_counts", {}).get("buckets", [])
+    ]
+    method_counts = [
+        {"value": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in aggs.get("method_counts", {}).get("buckets", [])
+    ]
+    path_counts = [
+        {"value": bucket["key"], "count": bucket["doc_count"]}
+        for bucket in aggs.get("path_counts", {}).get("buckets", [])
+    ]
+
+    return AnalyticsResult(daily_counts=daily_counts, method_counts=method_counts, path_counts=path_counts)
 
 
 def search_logs(

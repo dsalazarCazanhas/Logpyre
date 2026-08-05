@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
 from flask_wtf.file import FileAllowed, FileRequired
-from wtforms import SelectField, StringField, SubmitField, FileField
+from wtforms import FileField, SelectField, StringField, SubmitField
 from wtforms.validators import DataRequired, Regexp
 
 # Accepted file extensions for log upload.

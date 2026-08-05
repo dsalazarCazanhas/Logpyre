@@ -3,6 +3,7 @@ from datetime import datetime
 
 from ..models import NginxLogDocument
 from ..request_classifier import RequestCategory, classify_request
+from .base import base_grid_columns
 
 # Minimum set of keys that a valid Nginx JSON log line must contain.
 # Matches the example format defined with `log_format json_logs escape=json`.
@@ -29,18 +30,15 @@ class JsonLogParser:
 
     format_name: str = "nginx_json"
     format_label: str = "Nginx JSON"
-    # See combined.py's CombinedParser.column_defs for why sortable/filter/
-    # wrapText are deliberately absent here.
-    column_defs: list[dict] = [
-        {"field": "timestamp",        "headerName": "Timestamp",  "width": 190, "pinned": "left", "renderer": "timestamp"},
-        {"field": "remote_addr",       "headerName": "Origin",     "width": 135, "renderer": "ip"},
-        {"field": "request_category",  "headerName": "Category",   "width": 100, "renderer": "category"},
-        {"field": "method",            "headerName": "Method",     "width":  85, "renderer": "method"},
-        {"field": "path",              "headerName": "Path",       "width": 320, "renderer": "path", "tooltipField": "path"},
-        {"field": "status",            "headerName": "Status",     "width":  80, "type": "numericColumn", "renderer": "status"},
-        {"field": "http_user_agent",   "headerName": "User Agent", "width": 220, "renderer": "ua", "tooltipField": "http_user_agent"},
-        {"field": "http_referer",      "headerName": "Referer",    "showInGrid": False},
-        {"field": "body_bytes_sent",   "headerName": "Bytes",      "showInGrid": False},
+    column_defs: list[dict] = base_grid_columns() + [
+        {"field": "remote_addr",      "headerName": "Origin",     "showInGrid": False},
+        {"field": "request_category", "headerName": "Category",   "showInGrid": False},
+        {"field": "method",           "headerName": "Method",     "showInGrid": False},
+        {"field": "path",             "headerName": "Path",       "showInGrid": False},
+        {"field": "status",           "headerName": "Status",     "showInGrid": False},
+        {"field": "http_user_agent",  "headerName": "User Agent", "showInGrid": False},
+        {"field": "http_referer",     "headerName": "Referer",    "showInGrid": False},
+        {"field": "body_bytes_sent",  "headerName": "Bytes",      "showInGrid": False},
     ]
 
     def can_parse(self, line: str) -> bool:

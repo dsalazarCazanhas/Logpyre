@@ -1,20 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Favicon de llama con marco circular">
   <defs>
-    <!-- Bottom (base of flame) → top (tip): red → orange → yellow -->
-    <linearGradient id="a" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0"   stop-color="#c0392b"/>
-      <stop offset=".45" stop-color="#e67e22"/>
-      <stop offset="1"   stop-color="#f1c40f"/>
+    <linearGradient id="ring" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffb000"/>
+      <stop offset="0.55" stop-color="#ff7a00"/>
+      <stop offset="1" stop-color="#f23824"/>
     </linearGradient>
-    <linearGradient id="b" x1="0" y1="1" x2="0" y2="0">
-      <stop offset="0"   stop-color="#e67e22"/>
-      <stop offset="1"   stop-color="#fff176"/>
+    <linearGradient id="flame" x1="32" y1="52" x2="32" y2="12" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f23824"/>
+      <stop offset="0.5" stop-color="#ff6a00"/>
+      <stop offset="1" stop-color="#ffb000"/>
     </linearGradient>
   </defs>
-  <!-- Outer flame body: teardrop pointed at top -->
-  <path d="M16 4 C13 9,8 13,8 18 C8 23,11.5 26.5,16 28 C20.5 26.5,24 23,24 18 C24 13,19 9,16 4Z"
-        fill="url(#a)"/>
-  <!-- Inner bright core -->
-  <path d="M16 10 C14.5 13,12 15.5,12 19 C12 21.5,13.5 23.5,16 24.5 C18.5 23.5,20 21.5,20 19 C20 15.5,17.5 13,16 10Z"
-        fill="url(#b)" opacity=".7"/>
+
+  <!-- Fondo circular oscuro -->
+  <circle cx="32" cy="32" r="27" fill="#111317"/>
+
+  <!-- Marco circular -->
+  <circle cx="32" cy="32" r="27" fill="none" stroke="url(#ring)" stroke-width="4"/>
+
+  <!-- Llama principal, simplificada para conservar legibilidad a 16 px -->
+  <path
+    d="M33 12
+       C32 18 27 21 25 26
+       C23 30 24 33 26 36
+       C23 35 21 32 21 29
+       C17 34 16 39 18 44
+       C20 50 25 53 32 54
+       C39 53 45 48 46 42
+       C47 37 44 32 40 28
+       C41 33 39 36 36 37
+       C38 31 38 26 36 21
+       C35 18 34 15 33 12 Z"
+    fill="url(#flame)"/>
+
+  <!-- Corte interior para dar profundidad y reforzar la silueta -->
+  <path
+    d="M31 31
+       C28 35 27 38 28 42
+       C29 45 31 47 32 49
+       C35 47 37 44 37 41
+       C37 37 34 34 31 31 Z"
+    fill="#111317"/>
 </svg>
