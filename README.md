@@ -1,11 +1,17 @@
 # Logpyre
 
+[![CI](https://github.com/dsalazarCazanhas/Logpyre/actions/workflows/ci.yml/badge.svg)](https://github.com/dsalazarCazanhas/Logpyre/actions/workflows/ci.yml)
+[![Docker Hub](https://img.shields.io/docker/v/dsalazarcazanhas/logpyre?label=docker&sort=semver)](https://hub.docker.com/r/dsalazarcazanhas/logpyre)
+[![License: Apache 2.0](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+
 Lightweight log ingestion and search tool built on Flask and Elasticsearch.
 
 Some UI ideas are borrowed from tools like Splunk, but the goal here isn't to
 match their scope. Logpyre is built for fast **trace analysis**, with
 **portability and ease of use** as the actual priorities — every feature is
 scoped and hardened deliberately, without piling on noise.
+
+![Search view: daily volume chart, method/path facets, and the Timestamp + Event results grid](docs/images/search-view.png)
 
 ## Stack
 
