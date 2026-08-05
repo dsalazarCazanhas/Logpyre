@@ -260,6 +260,9 @@ test/parser-apache_combined-add-edge-cases
 The parser `format_name` (e.g. `nginx_combined`, `apache_combined`) goes in
 the scope segment so pull requests are immediately identifiable by format.
 
+> This convention applies going forward. Earlier branches (`develop`,
+> `splunk-v`, etc.) predate it and aren't being renamed retroactively.
+
 ### Commits
 
 - Imperative mood, English: `Add X`, `Fix Y`, `Remove Z`
