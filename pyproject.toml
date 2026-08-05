@@ -35,10 +35,15 @@ select = [
     "E4", "E7", "E9",  # pycodestyle errors (ruff's own defaults, made explicit)
     "F",               # pyflakes (ruff's own default)
     "I",               # isort — not previously enabled
+    "S",               # flake8-bandit — security (hardcoded secrets, insecure hashes, eval/exec, etc.)
 ]
 
 [tool.ruff.lint.isort]
 known-first-party = ["logpyre"]
+
+[tool.ruff.lint.per-file-ignores]
+# `assert` is the standard pytest idiom, not a stripped-under-`-O` production risk here.
+"tests/**/*.py" = ["S101"]
 
 [build-system]
 requires = ["poetry-core"]

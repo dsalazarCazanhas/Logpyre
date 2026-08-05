@@ -113,11 +113,11 @@ class Settings(BaseSettings):
     def validate_production_requirements(self) -> "Settings":
         """Enforce stricter requirements when running in production."""
         if self.app_env == Environment.PRODUCTION:
-            if self.flask_secret_key == "dev-only-insecure-key":
+            if self.flask_secret_key == "dev-only-insecure-key":  # noqa: S105 — guards the default, not a real secret
                 raise ValueError(
                     "FLASK_SECRET_KEY must be changed from the default in production."
                 )
-            if self.elastic_password == "changeme":
+            if self.elastic_password == "changeme":  # noqa: S105 — guards the default, not a real secret
                 raise ValueError(
                     "ELASTIC_PASSWORD must be changed from the default in production."
                 )
