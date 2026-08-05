@@ -50,7 +50,7 @@
           {{ upload_form.hidden_tag() }}
           <div id="upload-dropzone" class="upload-dropzone" data-dropzone="true">
             {{ upload_form.log_file(id='log_file', class='hidden-file-input') }}
-            <img src="{{ url_for('static', filename='favicon.svg') }}" alt="Logpyre icon" class="upload-icon">
+            <img src="{{ url_for('static', filename='img/upload-icon.svg') }}" alt="Upload icon" class="upload-icon">
             <h2>Logpyre</h2>
             <p class="upload-hint">Drop a .log or .txt file here, or click below to select one.</p>
             <button type="button" class="btn btn-default btn-sm" id="upload-select-btn">Select file</button>
