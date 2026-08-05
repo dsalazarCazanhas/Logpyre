@@ -52,7 +52,7 @@ docker run -d --rm --name elasticsearch -p 9200:9200 --net elastic -m 1GB -e "di
 
 `curl -k https://localhost:5000/health`
 
-> **TLS note** — Elasticsearch 8 uses self-signed TLS by default. Leave
+> **TLS note** — Elasticsearch uses self-signed TLS by default. Leave
 > `ELASTIC_CERT_FINGERPRINT` unset in development; the client will skip
 > certificate verification and log a warning. Never do this in production.
 
@@ -66,7 +66,7 @@ fully in-process.
 
 ```bash
 poetry run pytest -v
-# Expected: 87 passed
+# Expected: 169 passed
 ```
 
 All tests must pass before opening a pull request. Do not bypass hooks with
@@ -99,11 +99,13 @@ src/logpyre/
     └── routes.py           # All HTTP routes (Blueprint "web")
 
 tests/
-└── ingest/
-    ├── parsers/
-    │   ├── nginx_combined/ # Per-format test suite
-    │   └── nginx_json/
-    └── test_parser_dispatcher.py
+├── elastic/                 # search_logs() and index/formats tests (mocked ES)
+├── ingest/
+│   ├── parsers/
+│   │   ├── nginx_combined/  # Per-format test suite
+│   │   └── nginx_json/
+│   └── test_parser_dispatcher.py
+└── web/                     # routes.py and forms.py tests
 ```
 
 ---
@@ -113,8 +115,13 @@ tests/
 ### 1. Create the parser module
 
 ```bash
-src/logpyre/ingest/parsers/<format_name>.py
+src/logpyre/ingest/parsers/<descriptive_name>.py
 ```
+
+The **module filename** doesn't need to match `format_name` — pick something
+descriptive (e.g. `combined.py` holds the `nginx_combined` parser, `json_log.py`
+holds `nginx_json`). `format_name` itself is a class attribute, not a filename,
+and it's what actually drives Elasticsearch index naming.
 
 The file must define a class that satisfies the `BaseParser` Protocol
 (structural subtyping — no inheritance required):
