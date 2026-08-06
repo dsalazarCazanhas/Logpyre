@@ -111,9 +111,33 @@
     const apiAnalyticsUrl = pageShell?.dataset.apiAnalyticsUrl || null;
 
     // -----------------------------------------------------------------------
+    // Grid theme — AG Grid v33+ replaced the old ag-theme-alpine CSS classes
+    // with a JS Theming API. Light/dark are named "light"/"dark" to match
+    // data-ag-theme-mode, which theme.js keeps in sync with the page's own
+    // [data-theme] attribute; the grid re-renders on that attribute alone,
+    // no grid API call needed on toggle.
+    // -----------------------------------------------------------------------
+    const gridTheme = agGrid.themeQuartz
+        .withParams({
+            accentColor: "#337ab7",
+            backgroundColor: "#ffffff",
+            foregroundColor: "#333333",
+            headerBackgroundColor: "#f9f9f9",
+            browserColorScheme: "light",
+        }, "light")
+        .withParams({
+            accentColor: "#5b9bd5",
+            backgroundColor: "#1c1f24",
+            foregroundColor: "#d7dadd",
+            headerBackgroundColor: "#21252b",
+            browserColorScheme: "dark",
+        }, "dark");
+
+    // -----------------------------------------------------------------------
     // Grid — starts with empty columnDefs; hydrated on first loadPage()
     // -----------------------------------------------------------------------
     const gridOptions = {
+        theme: gridTheme,
         columnDefs: [],
         rowData: [],
         defaultColDef: { resizable: true, sortable: false, filter: false },
@@ -395,7 +419,7 @@
         hideDetail();
         pagerInline.innerHTML = "";
         resultInfo.innerHTML =
-            '<span style="color:#d9534f;font-weight:600;">&#9679; Elasticsearch is unreachable — searches are paused.</span>';
+            '<span style="color:var(--danger);font-weight:600;">&#9679; Elasticsearch is unreachable — searches are paused.</span>';
         setToolbarDisabled(true);
         activityPanel.classList.add("hidden");
     }

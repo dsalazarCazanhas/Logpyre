@@ -17,13 +17,13 @@ html, body { height: 100%; overflow: hidden; }
   gap: 10px;
   padding: 10px 0 6px;
   flex-shrink: 0;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 8px;
 }
 .project-label {
   font-size: 15px;
   font-weight: 500;
-  color: #999;
+  color: var(--text-muted);
   line-height: 1;
 }
 #format-badge {
@@ -31,13 +31,13 @@ html, body { height: 100%; overflow: hidden; }
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 3px;
-  background: #31708f;
-  color: #fff;
+  background: var(--info);
+  color: var(--text-inverse);
   letter-spacing: 0.03em;
   vertical-align: middle;
 }
 #page-time {
-  color: #000;
+  color: var(--text-strong);
   font-size: 12px;
   margin-left: auto; /* push timestamp to the right */
 }
@@ -65,17 +65,17 @@ html, body { height: 100%; overflow: hidden; }
   user-select: none;
 }
 #result-info {
-  color: #888;
+  color: var(--text-muted);
   font-size: 12px;
   white-space: nowrap;
   margin-left: 4px;
 }
 #result-info.result-info-error {
-  color: #c9302c;
+  color: var(--danger-strong);
   font-weight: 600;
 }
 #search-input.is-invalid {
-  border-color: #c9302c;
+  border-color: var(--danger-strong);
   box-shadow: none;
 }
 #pager-inline {
@@ -106,8 +106,11 @@ html, body { height: 100%; overflow: hidden; }
 /* Monospace body text throughout the grid — fixed-width columns (IPs,
    timestamps, status codes) read far faster when characters line up, which
    is why every serious log viewer (Splunk, Kibana Discover, Datadog) does
-   the same. Headers stay in the UI's normal font for visual hierarchy. */
-.ag-theme-alpine .ag-cell {
+   the same. Headers stay in the UI's normal font for visual hierarchy.
+   Selector targets the container by id rather than the old ag-theme-alpine
+   class — AG Grid v33+ renders via the JS Theming API, so that legacy class
+   no longer identifies the grid's theme (see gridTheme in index.js). */
+#log-grid .ag-cell {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 12px;
 }
@@ -117,7 +120,7 @@ html, body { height: 100%; overflow: hidden; }
 
 /* Selected row — green outline */
 .ag-row-selected {
-  outline: 2px solid #5cb85c !important;
+  outline: 2px solid var(--success) !important;
   outline-offset: -2px;
 }
 
@@ -129,8 +132,8 @@ html, body { height: 100%; overflow: hidden; }
   height: 0;
   overflow: hidden;
   transition: height 0.2s ease;
-  border-top: 2px solid #337ab7;
-  background: #f9f9f9;
+  border-top: 2px solid var(--accent);
+  background: var(--surface);
 }
 #detail-panel.is-open {
   overflow-y: auto;
@@ -143,8 +146,8 @@ html, body { height: 100%; overflow: hidden; }
   display: flex;
   align-items: center;
   padding: 5px 12px;
-  background: #337ab7;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
   font-size: 12px;
   font-weight: 600;
   z-index: 1;
@@ -153,7 +156,7 @@ html, body { height: 100%; overflow: hidden; }
   margin-left: auto;
   background: none;
   border: none;
-  color: #fff;
+  color: var(--text-inverse);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
@@ -163,30 +166,30 @@ html, body { height: 100%; overflow: hidden; }
 /* Detail panel key-value table */
 #detail-body { padding-bottom: 4px; }
 .dp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.dp-table tbody tr:nth-child(even) { background: #f0f4f8; }
+.dp-table tbody tr:nth-child(even) { background: var(--surface-alt); }
 .dp-key {
   width: 150px;
   padding: 4px 10px;
   font-weight: 600;
-  color: #555;
+  color: var(--text-secondary);
   white-space: nowrap;
   vertical-align: top;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--border);
 }
 .dp-val {
   padding: 4px 10px;
   font-family: monospace;
   font-size: 11px;
-  color: #333;
+  color: var(--text);
   word-break: break-all;
   vertical-align: top;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 1px solid var(--border);
 }
 .dp-raw {
   margin: 0 0 12px;
   padding: 8px 10px;
-  background: #2b2b2b;
-  color: #e8e8e8;
+  background: var(--code-bg);
+  color: var(--code-text);
   font-family: monospace;
   font-size: 11px;
   line-height: 1.5;
@@ -209,8 +212,8 @@ html, body { height: 100%; overflow: hidden; }
   padding: 0;
   border: none;
   border-radius: 3px;
-  background: #337ab7;
-  color: #fff;
+  background: var(--accent);
+  color: var(--text-inverse);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -223,7 +226,7 @@ html, body { height: 100%; overflow: hidden; }
   opacity: 1;
   pointer-events: auto;
 }
-.cell-filter-btn:hover { background: #286090; }
+.cell-filter-btn:hover { background: var(--accent-hover); }
 
 /* ── Empty state (no data / no search results) ──────────────────────────── */
 #empty-state {
@@ -242,11 +245,11 @@ html, body { height: 100%; overflow: hidden; }
   font-size: 18px;
   font-weight: 600;
   margin: 16px 0 6px;
-  color: #444;
+  color: var(--text-heading);
 }
 #empty-state p {
   font-size: 13px;
-  color: #888;
+  color: var(--text-muted);
   margin: 0 0 18px;
 }
 
@@ -272,8 +275,8 @@ html, body { height: 100%; overflow: hidden; }
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #f59e0b;
-  color: #1a1a1a;
+  background: var(--warn);
+  color: var(--warn-text);
   font-size: 12px;
   font-weight: 600;
   padding: 3px 8px 3px 10px;
@@ -288,7 +291,7 @@ html, body { height: 100%; overflow: hidden; }
   font-size: 15px;
   line-height: 1;
   padding: 0;
-  color: #1a1a1a;
+  color: var(--warn-text);
   font-weight: 700;
   opacity: 0.55;
   margin-left: 2px;
@@ -296,19 +299,19 @@ html, body { height: 100%; overflow: hidden; }
 .filter-tag-remove:hover { opacity: 1; }
 .filter-clear-all {
   background: none;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
   font-size: 11px;
   padding: 3px 9px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
   margin-left: 4px;
 }
 .filter-clear-all:hover {
-  background: #f5f5f5;
-  color: #333;
-  border-color: #aaa;
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-hover);
 }
 /* ── Activity panel: daily volume chart + method/path facets ─────────────── */
 #activity-panel {
@@ -338,17 +341,17 @@ html, body { height: 100%; overflow: hidden; }
   overflow-y: auto;
   overflow-x: hidden;
   padding: 5px;
-  border: 1px solid #e5e5e5;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fafafa;
+  background: var(--surface);
 }
 .activity-facet-badge {
   display: flex;
   align-items: center;
   gap: 4px;
   max-width: 100%;
-  background: #eef1f5;
-  color: #333;
+  background: var(--surface-alt);
+  color: var(--text);
   font-size: 11px;
   font-weight: 600;
   padding: 3px 8px;
@@ -356,7 +359,7 @@ html, body { height: 100%; overflow: hidden; }
   border: none;
   cursor: pointer;
 }
-.activity-facet-badge:hover { background: #e0e5eb; }
+.activity-facet-badge:hover { background: var(--surface-alt-hover); }
 .activity-facet-badge .activity-facet-value {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -364,7 +367,7 @@ html, body { height: 100%; overflow: hidden; }
   min-width: 0;
 }
 .activity-facet-badge .activity-facet-count {
-  color: #888;
+  color: var(--text-muted);
   font-weight: 500;
   flex-shrink: 0;
 }
@@ -386,8 +389,8 @@ html, body { height: 100%; overflow: hidden; }
   min-width: 220px;
   max-height: 320px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-strong);
   border-radius: 6px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.15);
   z-index: 200;
@@ -402,8 +405,8 @@ html, body { height: 100%; overflow: hidden; }
   font-size: 13px;
   cursor: pointer;
 }
-.project-picker-item:hover { background: #f5f5f5; }
-.project-picker-item.is-active { font-weight: 600; color: #337ab7; }
+.project-picker-item:hover { background: var(--surface-hover); }
+.project-picker-item.is-active { font-weight: 600; color: var(--accent); }
 .ppi-name {
   flex: 1;
   overflow: hidden;
@@ -420,26 +423,26 @@ html, body { height: 100%; overflow: hidden; }
   border: none;
   border-radius: 3px;
   background: transparent;
-  color: #c9302c;
+  color: var(--danger-strong);
   opacity: 0;
   cursor: pointer;
   transition: opacity .1s ease-in-out, background .1s ease-in-out;
 }
 .project-picker-item:hover .ppi-delete { opacity: 0.7; }
-.ppi-delete:hover { opacity: 1 !important; background: #fbeaea; }
+.ppi-delete:hover { opacity: 1 !important; background: var(--danger-soft); }
 .project-picker-divider {
   height: 1px;
-  background: #eee;
+  background: var(--border);
   margin: 4px 0;
 }
 .project-picker-add {
   padding: 7px 10px;
   font-size: 13px;
   font-weight: 600;
-  color: #337ab7;
+  color: var(--accent);
   cursor: pointer;
 }
-.project-picker-add:hover { background: #f5f5f5; }
+.project-picker-add:hover { background: var(--surface-hover); }
 
 #upload-modal {
   display: none;
@@ -456,7 +459,7 @@ html, body { height: 100%; overflow: hidden; }
 .upload-modal-card {
   position: relative;
   width: min(640px, 100%);
-  background: #fff;
+  background: var(--surface-elevated);
   border-radius: 14px;
   box-shadow: 0 24px 80px rgba(0,0,0,0.18);
   overflow: hidden;
@@ -474,13 +477,13 @@ html, body { height: 100%; overflow: hidden; }
   border: none;
   border-radius: 50%;
   background: rgba(0,0,0,.06);
-  color: #333;
+  color: var(--text);
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
 }
 .upload-dropzone {
-  border: 2px dashed #ccc;
+  border: 2px dashed var(--border-strong);
   border-radius: 16px;
   padding: 28px 24px;
   display: flex;
@@ -492,8 +495,8 @@ html, body { height: 100%; overflow: hidden; }
   transition: border-color .2s ease, background .2s ease;
 }
 .upload-dropzone.drag-over {
-  border-color: #337ab7;
-  background: #f4f8ff;
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 .upload-dropzone img.upload-icon {
   width: 78px;
@@ -501,7 +504,7 @@ html, body { height: 100%; overflow: hidden; }
 }
 .upload-dropcopy {
   font-size: 13px;
-  color: #666;
+  color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -512,7 +515,7 @@ html, body { height: 100%; overflow: hidden; }
 }
 .upload-dropzone p.upload-hint {
   margin: 0;
-  color: #888;
+  color: var(--text-muted);
   font-size: 14px;
 }
 input.hidden-file-input { display: none; }
@@ -523,15 +526,15 @@ input.hidden-file-input { display: none; }
   margin-top: 12px;
 }
 .upload-file-meta {
-  color: #000;
+  color: var(--text-strong);
   font-size: 13px;
   min-height: 22px;
 }
 .upload-file-meta--empty {
-  color: #888;
+  color: var(--text-muted);
 }
 .upload-file-meta--valid {
-  color: #000;
+  color: var(--text-strong);
 }
 .upload-clear-btn {
   display: inline-flex;
@@ -539,18 +542,18 @@ input.hidden-file-input { display: none; }
   justify-content: center;
   width: 26px;
   height: 26px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-strong);
   border-radius: 4px;
-  background: #fff;
-  color: #333;
+  background: var(--surface-elevated);
+  color: var(--text);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
   transition: border-color 120ms ease, background-color 120ms ease;
 }
 .upload-clear-btn:hover {
-  border-color: #999;
-  background: #f8f8f8;
+  border-color: var(--border-hover);
+  background: var(--surface-hover);
 }
 .upload-clear-btn.hidden {
   display: none;
@@ -581,7 +584,7 @@ input.hidden-file-input { display: none; }
 .confirm-modal-card {
   position: relative;
   width: min(420px, 100%);
-  background: #fff;
+  background: var(--surface-elevated);
   border-radius: 14px;
   box-shadow: 0 24px 80px rgba(0,0,0,0.18);
   padding: 28px 28px 22px;
@@ -595,7 +598,7 @@ input.hidden-file-input { display: none; }
   border: none;
   border-radius: 50%;
   background: rgba(0,0,0,.06);
-  color: #333;
+  color: var(--text);
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
@@ -607,16 +610,16 @@ input.hidden-file-input { display: none; }
 }
 .confirm-modal-body-text {
   font-size: 13px;
-  color: #555;
+  color: var(--text-secondary);
   margin: 0 0 10px;
 }
 .confirm-modal-body-text code {
-  background: #f5f5f5;
+  background: var(--surface-hover);
   padding: 1px 5px;
   border-radius: 3px;
 }
 .confirm-modal-error {
-  color: #c9302c;
+  color: var(--danger-strong);
   font-size: 13px;
   margin: 10px 0 0;
 }

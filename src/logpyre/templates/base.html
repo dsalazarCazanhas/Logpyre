@@ -3,6 +3,18 @@
 {% block title %}Logpyre{% endblock %}
 
 {% block head %}
+<script>
+// Must run before any stylesheet link below (and before AG Grid is created
+// on pages that use it) so [data-theme]/[data-ag-theme-mode] are already
+// set on <html> at first paint — otherwise the page flashes light before
+// switching to the stored/preferred dark theme.
+(function () {
+    var stored = localStorage.getItem('logpyre-theme');
+    var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-ag-theme-mode', theme);
+})();
+</script>
 {{ super() }}
 <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
@@ -29,6 +41,11 @@
                         <span class="es-label">checking…</span>
                     </span>
                 </li>
+                <li>
+                    <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+                        <span id="theme-toggle-icon" aria-hidden="true"></span>
+                    </button>
+                </li>
             </ul>
         </div>
     </div>
@@ -38,6 +55,7 @@
 {% block scripts %}
 {{ super() }}
 {{ moment.include_moment() }}
+<script src="{{ url_for('static', filename='js/theme.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/base.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/health.js') }}" defer></script>
 {% endblock %}
