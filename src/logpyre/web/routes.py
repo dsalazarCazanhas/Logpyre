@@ -2,13 +2,22 @@ import re
 from datetime import datetime, timezone
 
 from elasticsearch import ApiError
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    current_app,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from ..config import settings
 from ..elastic.client import get_client
 from ..elastic.formats import get_format_metadata, upsert_format_metadata
 from ..elastic.projects import delete_project, list_projects, project_exists
-from ..elastic.search import PAGE_SIZE, search_logs
+from ..elastic.search import PAGE_SIZE, get_analytics, search_logs
 from ..ingest.parser import available_formats, column_defs_for, format_label_for
 from ..ingest.pipeline import IngestResult, ingest_file
 from .forms import UploadForm
@@ -116,6 +125,29 @@ def api_search():
         "has_next": result.has_next,
         "format_label": resolved_label,
         "column_defs": resolved_col_defs,
+    })
+
+
+@bp.route("/api/analytics", methods=["GET"])
+def api_analytics():
+    """Return activity-by-day plus method/path facets for the activity panel.
+
+    Query params: same ``q``/``project`` semantics as ``/api/search`` — the
+    aggregations respect whatever filters are currently applied.
+    """
+    terms = [t.strip() for t in request.args.getlist("q") if t.strip()]
+    project = request.args.get("project", "").strip() or None
+
+    try:
+        result = get_analytics(terms=terms, project=project)
+    except ApiError as exc:
+        current_app.logger.error("Elasticsearch error in api_analytics: %s", exc)
+        return jsonify({"error": "Elasticsearch is unavailable."}), 503
+
+    return jsonify({
+        "daily_counts": result.daily_counts,
+        "method_counts": result.method_counts,
+        "path_counts": result.path_counts,
     })
 
 

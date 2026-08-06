@@ -3,6 +3,7 @@ from datetime import datetime
 
 from ..models import NginxLogDocument
 from ..request_classifier import RequestCategory, classify_request
+from .base import base_grid_columns
 
 # Nginx combined log format:
 # $remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent"
@@ -31,29 +32,15 @@ class CombinedParser:
 
     format_name: str = "nginx_combined"
     format_label: str = "Nginx Combined"
-    # No `sortable`/`filter` here: AG Grid's own sort/filter operate only on
-    # the current in-memory page (client-side row model), which would be
-    # actively misleading against a server-paginated dataset — use the
-    # toolbar search (including `field:value` filters) instead, which queries
-    # the full result set. No `wrapText`/`autoHeight` either: uneven row
-    # heights break fast visual scanning, which matters more for a log table
-    # than seeing the full value inline — `tooltipField` covers that on hover,
-    # and the detail panel covers it on click.
-    column_defs: list[dict] = [
-        {"field": "timestamp",        "headerName": "Timestamp",  "width": 190, "pinned": "left", "renderer": "timestamp"},
-        {"field": "remote_addr",       "headerName": "Origin",     "width": 135, "renderer": "ip"},
-        {"field": "request_category",  "headerName": "Category",   "width": 100, "renderer": "category"},
-        {"field": "method",            "headerName": "Method",     "width":  85, "renderer": "method"},
-        {"field": "path",              "headerName": "Path",       "width": 320, "renderer": "path", "tooltipField": "path"},
-        {"field": "status",            "headerName": "Status",     "width":  80, "type": "numericColumn", "renderer": "status"},
-        {"field": "http_user_agent",   "headerName": "User Agent", "width": 220, "renderer": "ua", "tooltipField": "http_user_agent"},
-        # Referer and Bytes add visual noise without much scanning value —
-        # Referer is near-always "-" on probe/scan traffic (this parser also
-        # classifies non-HTTP protocols), and Bytes rarely varies enough to
-        # matter at a glance. Kept out of the grid but not deleted from
-        # column_defs, so they still get their labels in the detail panel.
-        {"field": "http_referer",      "headerName": "Referer",    "showInGrid": False},
-        {"field": "body_bytes_sent",   "headerName": "Bytes",      "showInGrid": False},
+    column_defs: list[dict] = base_grid_columns() + [
+        {"field": "remote_addr",      "headerName": "Origin",     "showInGrid": False},
+        {"field": "request_category", "headerName": "Category",   "showInGrid": False},
+        {"field": "method",           "headerName": "Method",     "showInGrid": False},
+        {"field": "path",             "headerName": "Path",       "showInGrid": False},
+        {"field": "status",           "headerName": "Status",     "showInGrid": False},
+        {"field": "http_user_agent",  "headerName": "User Agent", "showInGrid": False},
+        {"field": "http_referer",     "headerName": "Referer",    "showInGrid": False},
+        {"field": "body_bytes_sent",  "headerName": "Bytes",      "showInGrid": False},
     ]
 
     def can_parse(self, line: str) -> bool:

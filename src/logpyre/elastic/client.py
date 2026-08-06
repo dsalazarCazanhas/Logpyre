@@ -1,9 +1,15 @@
+import logging
+
 import urllib3
 from elasticsearch import Elasticsearch
 from flask import Flask, current_app
 
+from .index_template import ensure_data_index_template
+
 # Extension key used to store the client instance in app.extensions.
 _EXTENSION_KEY = "logpyre_elastic"
+
+_logger = logging.getLogger(__name__)
 
 
 def init_elastic(app: Flask) -> None:
@@ -55,6 +61,20 @@ def init_elastic(app: Flask) -> None:
         )
 
     app.extensions[_EXTENSION_KEY] = client
+
+    # Registers the index template that gives newly-created data indices
+    # fast substring search on `raw` (see index_template.py). Must not
+    # crash startup if ES isn't reachable yet — flask run doesn't wait for
+    # ES the way docker-compose's depends_on/healthcheck does.
+    try:
+        ensure_data_index_template(client)
+    except Exception:
+        _logger.exception(
+            "Failed to register the logpyre-data index template — "
+            "substring search will silently degrade to word-based matching "
+            "on any index created before this succeeds. Will retry on next "
+            "app start."
+        )
 
 
 def get_client() -> Elasticsearch:

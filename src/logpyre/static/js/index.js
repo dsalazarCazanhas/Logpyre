@@ -13,26 +13,6 @@
     // -----------------------------------------------------------------------
     // Cell renderers — keyed by the "renderer" field in column_defs
     // -----------------------------------------------------------------------
-    const categoryRenderer = p => {
-        const cat = p.value || "unknown_raw";
-        const labels = {
-            http:          ["HTTP",   "cat-http"],
-            tls_handshake: ["TLS",    "cat-tls"],
-            socks4:        ["SOCKS4", "cat-socks4"],
-            socks5:        ["SOCKS5", "cat-socks5"],
-            rdp:           ["RDP",    "cat-rdp"],
-        };
-        const [text, cls] = labels[cat] ?? ["RAW", "cat-unknown"];
-        return `<span class="${cls}">${text}</span>`;
-    };
-
-    const statusRenderer = p => {
-        if (p.value == null) return "";
-        const s = +p.value;
-        const cls = s < 300 ? "status-ok" : s < 400 ? "status-redir" : s < 500 ? "status-warn" : "status-err";
-        return `<span class="${cls}">${escapeHtml(String(p.value))}</span>`;
-    };
-
     // Correlating logs across sources only works if the timezone is explicit —
     // silently dropping the offset (as a naive substring(0, 19) would) makes
     // "10:22:01" ambiguous whenever the ingested files don't all share one tz.
@@ -43,14 +23,11 @@
         return offsetMatch ? `${datePart} ${offsetMatch[0]}` : datePart;
     };
 
+    // Timestamp is the only field still rendered through this map — every
+    // other field the grid used to show (category/status/ip/method/path/ua)
+    // is detail-panel-only since the Splunk-style Timestamp+Event redesign.
     const RENDERERS = {
         timestamp: timestampRenderer,
-        category:  categoryRenderer,
-        status:    statusRenderer,
-        ip:        p => p.value ? `<code>${escapeHtml(p.value)}</code>` : "",
-        method:    p => p.value ? `<strong>${escapeHtml(p.value)}</strong>` : "",
-        path:      p => p.value ? `<span style=\"font-family:monospace;font-size:11px\">${escapeHtml(p.value)}</span>` : "",
-        ua:        p => p.value ? `<span style="font-size:11px">${escapeHtml(p.value)}</span>` : "",
     };
 
     // -----------------------------------------------------------------------
@@ -84,6 +61,14 @@
             if (d.type)         col.type         = d.type;
             if (d.pinned)       col.pinned       = d.pinned;
             if (d.tooltipField) col.tooltipField = d.tooltipField;
+            // "raw" wraps and grows the row to fit its full content — the
+            // whole point of the Event column is not losing text at a
+            // glance, so it must accommodate the content instead of the
+            // other way around (Splunk's event list works the same way).
+            if (d.field === "raw") {
+                col.wrapText   = true;
+                col.autoHeight = true;
+            }
 
             const innerRenderer = d.renderer && RENDERERS[d.renderer];
             const filterable    = !NOT_FILTERABLE.has(d.field);
@@ -98,8 +83,12 @@
                 return `<span class="cell-value">${inner}</span>${filterIconHtml(d.field, p.value)}`;
             };
 
-            if (d.renderer === "path" || d.field === "raw") {
+            if (d.field === "raw") {
                 col.cellStyle = { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" };
+                // overflow-wrap (not word-break: break-all) — only breaks a
+                // word mid-character when it wouldn't fit on its own line,
+                // instead of breaking eagerly wherever a line gets tight.
+                Object.assign(col.cellStyle, { overflowWrap: "anywhere" });
             }
             return col;
         });
@@ -117,24 +106,56 @@
     const PAGE_SIZE          = 50;
 
     const pageShell      = document.getElementById('page-shell');
-    const apiProjectsUrl = pageShell?.dataset.apiProjectsUrl || null;
-    const apiSearchUrl   = pageShell?.dataset.apiSearchUrl || null;
+    const apiProjectsUrl  = pageShell?.dataset.apiProjectsUrl || null;
+    const apiSearchUrl    = pageShell?.dataset.apiSearchUrl || null;
+    const apiAnalyticsUrl = pageShell?.dataset.apiAnalyticsUrl || null;
+
+    // -----------------------------------------------------------------------
+    // Grid theme — AG Grid v33+ replaced the old ag-theme-alpine CSS classes
+    // with a JS Theming API. Light/dark are named "light"/"dark" to match
+    // data-ag-theme-mode, which theme.js keeps in sync with the page's own
+    // [data-theme] attribute; the grid re-renders on that attribute alone,
+    // no grid API call needed on toggle.
+    // -----------------------------------------------------------------------
+    const gridTheme = agGrid.themeQuartz
+        .withParams({
+            accentColor: "#337ab7",
+            backgroundColor: "#ffffff",
+            foregroundColor: "#333333",
+            headerBackgroundColor: "#f9f9f9",
+            browserColorScheme: "light",
+        }, "light")
+        .withParams({
+            accentColor: "#5b9bd5",
+            backgroundColor: "#1c1f24",
+            foregroundColor: "#d7dadd",
+            headerBackgroundColor: "#21252b",
+            browserColorScheme: "dark",
+        }, "dark");
 
     // -----------------------------------------------------------------------
     // Grid — starts with empty columnDefs; hydrated on first loadPage()
     // -----------------------------------------------------------------------
     const gridOptions = {
+        theme: gridTheme,
         columnDefs: [],
         rowData: [],
         defaultColDef: { resizable: true, sortable: false, filter: false },
         rowSelection: "single",
         onRowClicked: e => showDetail(e.data),
+        // Cell focus stays on (no suppressCellFocus) so arrow keys/Tab can
+        // reach a row at all; Enter/Space then open the same detail panel
+        // onRowClicked does on click — otherwise the grid's one interaction
+        // (open a row's detail) would be mouse-only.
+        onCellKeyDown: e => {
+            const key = e.event?.key;
+            if (key === "Enter" || key === " ") showDetail(e.data);
+        },
         pagination: true,
         paginationPageSize: PAGE_SIZE,
         suppressPaginationPanel: true,
         headerHeight: 36,
         rowHeight: 30,
-        suppressCellFocus: true,
         enableCellTextSelection: true,
         animateRows: false,
     };
@@ -331,12 +352,11 @@
         if (isNoData) {
             emptyTitle.textContent = "No logs ingested yet";
             emptySub.textContent   = "Upload a log file to start exploring your traces.";
-            emptyCta.style.display = "";
         } else {
             emptyTitle.textContent = `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`;
             emptySub.textContent   = "Try a different search term.";
-            emptyCta.style.display = "none";
         }
+        emptyCta.classList.toggle("hidden", !isNoData);
         emptyState.classList.add("is-visible");
         gridEl.classList.add("is-hidden");
         setToolbarDisabled(isNoData);
@@ -399,8 +419,89 @@
         hideDetail();
         pagerInline.innerHTML = "";
         resultInfo.innerHTML =
-            '<span style="color:#d9534f;font-weight:600;">&#9679; Elasticsearch is unreachable — searches are paused.</span>';
+            '<span style="color:var(--danger);font-weight:600;">&#9679; Elasticsearch is unreachable — searches are paused.</span>';
         setToolbarDisabled(true);
+        activityPanel.classList.add("hidden");
+    }
+
+    // -----------------------------------------------------------------------
+    // Activity panel: daily volume chart + method/path facet badges.
+    // Prototype scope (nginx_combined only) — facets simply come back empty
+    // for formats without method/path fields, so the panel just stays hidden.
+    // -----------------------------------------------------------------------
+    const activityPanel  = document.getElementById("activity-panel");
+    const activityCanvas = document.getElementById("activity-chart");
+    const activityFacets = document.getElementById("activity-facets");
+    let activityChart = null;
+
+    // One ranked list mixing every facet field's top values instead of a
+    // box per field — picking "method" from one box and "path" from
+    // another wasn't meaningfully different from picking both off one
+    // combined, count-sorted list, and the single box gives the chart back
+    // the width the per-field split used to take.
+    function renderFacetBadges(container, fieldBuckets) {
+        const items = fieldBuckets
+            .flatMap(({ field, buckets }) => buckets.map(b => ({ field, value: String(b.value), count: b.count })))
+            .sort((a, b) => b.count - a.count);
+
+        container.innerHTML = items.map(item =>
+            `<button type="button" class="activity-facet-badge" data-filter-field="${escapeHtml(item.field)}" data-filter-value="${escapeHtml(item.value)}" title="${escapeHtml(item.value)}"><span class="activity-facet-value">${escapeHtml(item.value)}</span><span class="activity-facet-count">${item.count}</span></button>`
+        ).join("");
+        container.querySelectorAll(".activity-facet-badge").forEach(btn => {
+            btn.addEventListener("click", () => addFieldFilter(btn.dataset.filterField, btn.dataset.filterValue));
+        });
+    }
+
+    function renderActivityChart(dailyCounts) {
+        const labels = dailyCounts.map(d => d.date);
+        const counts = dailyCounts.map(d => d.count);
+
+        if (activityChart) {
+            activityChart.data.labels = labels;
+            activityChart.data.datasets[0].data = counts;
+            activityChart.update();
+            return;
+        }
+
+        activityChart = new Chart(activityCanvas, {
+            type: "bar",
+            data: { labels, datasets: [{ data: counts, backgroundColor: "#f59e0b" }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { maxRotation: 0 } },
+                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                },
+                onClick: (evt, elements) => {
+                    if (!elements.length) return;
+                    addFieldFilter("timestamp", activityChart.data.labels[elements[0].index]);
+                },
+            },
+        });
+    }
+
+    function loadAnalytics() {
+        if (!apiAnalyticsUrl || !esIsAlive) return;
+        const url = new URL(apiAnalyticsUrl, window.location.origin);
+        searchTerms.forEach(t => url.searchParams.append("q", t));
+        if (currentProject) url.searchParams.set("project", currentProject);
+
+        fetch(url)
+            .then(r => (r.ok ? r.json() : null))
+            .then(data => {
+                if (!data) return;
+                const hasData = data.daily_counts.length || data.method_counts.length || data.path_counts.length;
+                activityPanel.classList.toggle("hidden", !hasData);
+                if (!hasData) return;
+                renderActivityChart(data.daily_counts);
+                renderFacetBadges(activityFacets, [
+                    { field: "method", buckets: data.method_counts },
+                    { field: "path", buckets: data.path_counts },
+                ]);
+            })
+            .catch(() => {});
     }
 
     function loadPage(page) {
@@ -409,6 +510,12 @@
             return;
         }
         currentPage = page;
+        // Page 1 always corresponds to a fresh search/filter change (initial
+        // load, project switch, added/removed filter) — pager clicks to
+        // other pages don't change what's filtered, so only refresh the
+        // activity panel here rather than on every page turn.
+        if (page === 1) loadAnalytics();
+
         const url = new URL(apiSearchUrl, window.location.origin);
         searchTerms.forEach(t => url.searchParams.append("q", t));
         url.searchParams.set("page", page);
@@ -430,7 +537,7 @@
                 if (data.total === 0) {
                     hideDetail();
                     showEmptyState(searchTerms.length === 0);
-                    formatBadge.style.display = "none";
+                    formatBadge.classList.add("hidden");
                     resultInfo.textContent = searchTerms.length
                         ? `No results for ${searchTerms.map(t => `\u201c${escapeHtml(t)}\u201d`).join(" + ")}`
                         : "";
@@ -448,9 +555,9 @@
 
                 if (data.format_label) {
                     formatBadge.textContent = data.format_label;
-                    formatBadge.style.display = "";
+                    formatBadge.classList.remove("hidden");
                 } else {
-                    formatBadge.style.display = "none";
+                    formatBadge.classList.add("hidden");
                 }
 
                 renderPagination(data.total, data.page, data.total_pages);
@@ -565,6 +672,40 @@
         }
     });
 
+    // -----------------------------------------------------------------------
+    // Modal accessibility: Escape-to-close + focus trap, shared by both
+    // custom modals below (upload, delete-project) since neither uses the
+    // native <dialog> element and its built-in behavior.
+    // -----------------------------------------------------------------------
+    function trapFocus(modalEl, event) {
+        const focusable = modalEl.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        );
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    }
+
+    function setupModalA11y(modalEl, onClose) {
+        if (!modalEl) return;
+        modalEl.addEventListener('keydown', event => {
+            if (!modalEl.classList.contains('is-visible')) return;
+            if (event.key === 'Escape') {
+                event.stopPropagation();
+                onClose();
+            } else if (event.key === 'Tab') {
+                trapFocus(modalEl, event);
+            }
+        });
+    }
+
     const uploadModal      = document.getElementById('upload-modal');
     const closeUploadBtns  = [
       document.querySelector('.upload-modal-close'),
@@ -601,10 +742,7 @@
         if (clearFileBtn) clearFileBtn.classList.add('hidden');
         return;
       }
-      const size = file.size < 1024 ? `${file.size} B`
-        : file.size < 1024 * 1024 ? `${(file.size / 1024).toFixed(1)} KB`
-        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
-      fileMeta.textContent = `${file.name} · ${size}`;
+      fileMeta.textContent = `${file.name} · ${window.Logpyre.formatBytes(file.size)}`;
       fileMeta.classList.remove('upload-file-meta--empty');
       fileMeta.classList.add('upload-file-meta--valid');
       if (clearFileBtn) clearFileBtn.classList.remove('hidden');
@@ -614,6 +752,7 @@
       if (!uploadModal) return;
       uploadModal.classList.add('is-visible');
       uploadModal.setAttribute('aria-hidden', 'false');
+      if (selectFileBtn) selectFileBtn.focus();
     }
 
     function closeUploadModal() {
@@ -622,12 +761,11 @@
       uploadModal.setAttribute('aria-hidden', 'true');
     }
 
+    setupModalA11y(uploadModal, closeUploadModal);
+
     const uploadForm = document.getElementById('upload-form');
     if (uploadForm) {
-      uploadForm.addEventListener('submit', function () {
-        const overlay = document.getElementById('upload-overlay');
-        if (overlay) overlay.classList.add('is-visible');
-      });
+      uploadForm.addEventListener('submit', () => window.Logpyre.showUploadOverlay());
     }
 
     closeUploadBtns.forEach(btn => btn.addEventListener('click', closeUploadModal));
@@ -720,6 +858,8 @@
         deleteModal.classList.remove('is-visible');
         deleteModal.setAttribute('aria-hidden', 'true');
     }
+
+    setupModalA11y(deleteModal, closeDeleteProjectModal);
 
     if (deleteModalInput) {
         deleteModalInput.addEventListener('input', () => {

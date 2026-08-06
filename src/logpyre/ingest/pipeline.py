@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import IO
 
-from .parser import parse_line_with_format
 from ..elastic.index import index_document
+from .parser import parse_line_with_format
 
 
 @dataclass
@@ -61,7 +61,10 @@ def ingest_file(file: IO[bytes], format_name: str, project: str) -> IngestResult
 
         try:
             doc = parse_line_with_format(line, format_name)
-            doc = doc.model_copy(update={"project": project})
+            # Plain attribute assignment (not model_copy(update=...), which
+            # skips validation entirely) so a malformed project slug fails
+            # here instead of reaching the Elasticsearch index name.
+            doc.project = project
             index_document(doc)
             result.indexed += 1
         except Exception as exc:

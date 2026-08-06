@@ -3,7 +3,7 @@ import json
 import pytest
 
 from logpyre.ingest.models import NginxLogDocument
-from logpyre.ingest.parser import parse_line
+from logpyre.ingest.parser import parse_line, parse_line_with_format
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -80,3 +80,55 @@ class TestDispatcherErrors:
         bad_line = "totally-unknown-format"
         with pytest.raises(ValueError, match=bad_line):
             parse_line(bad_line)
+
+
+# ---------------------------------------------------------------------------
+# parse_line_with_format() — bypasses auto-detection. This is the path
+# actually used in production: ingest_file() calls this, not parse_line(),
+# since the user picks the format explicitly at upload time.
+# ---------------------------------------------------------------------------
+
+class TestParseLineWithFormatHappyPath:
+
+    def test_dispatches_to_the_requested_combined_format(self):
+        doc = parse_line_with_format(COMBINED_LINE, "nginx_combined")
+        assert isinstance(doc, NginxLogDocument)
+        assert doc.remote_addr == "93.184.216.34"
+        assert doc.log_format == "nginx_combined"
+
+    def test_dispatches_to_the_requested_json_format(self):
+        doc = parse_line_with_format(JSON_LINE, "nginx_json")
+        assert isinstance(doc, NginxLogDocument)
+        assert doc.remote_addr == "93.184.216.34"
+        assert doc.log_format == "nginx_json"
+
+    def test_strips_leading_and_trailing_whitespace(self):
+        doc = parse_line_with_format("  " + COMBINED_LINE + "\n", "nginx_combined")
+        assert doc.remote_addr == "93.184.216.34"
+
+
+class TestParseLineWithFormatErrors:
+
+    def test_raises_on_empty_string(self):
+        with pytest.raises(ValueError, match="empty"):
+            parse_line_with_format("", "nginx_combined")
+
+    def test_raises_on_whitespace_only(self):
+        with pytest.raises(ValueError, match="empty"):
+            parse_line_with_format("   \n", "nginx_combined")
+
+    def test_raises_on_unknown_format_name(self):
+        with pytest.raises(ValueError, match="Unknown format"):
+            parse_line_with_format(COMBINED_LINE, "not_a_real_format")
+
+    def test_error_message_lists_registered_formats(self):
+        with pytest.raises(ValueError, match="nginx_combined"):
+            parse_line_with_format(COMBINED_LINE, "not_a_real_format")
+
+    def test_line_that_does_not_match_the_requested_formats_grammar_raises(self):
+        # format_name picks the parser directly, skipping can_parse() —  if
+        # the line doesn't match that parser's own grammar, its parse()
+        # raises. Different failure mode from parse_line()'s "no parser
+        # recognised" — here a specific parser was requested and rejected it.
+        with pytest.raises(ValueError, match="does not match"):
+            parse_line_with_format(JSON_LINE, "nginx_combined")

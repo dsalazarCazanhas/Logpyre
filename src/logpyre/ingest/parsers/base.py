@@ -28,11 +28,16 @@ class BaseParser(Protocol):
         * ``width``       — fixed pixel width (optional)
         * ``flex``        — flex ratio, mutually exclusive with ``width`` (optional)
         * ``minWidth``    — minimum pixel width when using ``flex`` (optional)
-        * ``sortable``    — bool, default False
-        * ``filter``      — AG Grid filter type string or omit for no filter
-        * ``wrapText``    — bool, enables word-wrap and auto row height
+        * ``pinned``      — ``"left"``/``"right"`` to pin the column (optional)
         * ``renderer``    — key into the frontend RENDERERS map for custom cells
         * ``type``        — AG Grid column type (e.g. ``"numericColumn"``)
+        * ``tooltipField``— field to show as a native tooltip on hover
+        * ``showInGrid``  — set to ``False`` to keep the field out of the grid
+          while still giving it a label in the row detail panel
+
+        Most parsers should build this via :func:`base_grid_columns` plus
+        their own detail-only fields, rather than listing Timestamp/Event by
+        hand — see that function's docstring.
     """
 
     format_name: str
@@ -61,3 +66,28 @@ class BaseParser(Protocol):
                 returning True.
         """
         ...
+
+
+def base_grid_columns() -> list[dict]:
+    """Return the two columns every parser's grid starts from: Timestamp + Event.
+
+    Splunk-style table: Timestamp is pinned and fixed-width, Event fills the
+    rest of the grid with the untouched raw log line (the ``raw`` field every
+    :class:`~logpyre.ingest.models.BaseLogDocument` carries). Every other
+    field a parser exposes is detail-only — appended with ``showInGrid:
+    False`` so it keeps a label in the row detail panel without adding a
+    grid column::
+
+        column_defs: list[dict] = base_grid_columns() + [
+            {"field": "remote_addr", "headerName": "Origin", "showInGrid": False},
+            {"field": "status",      "headerName": "Status", "showInGrid": False},
+        ]
+
+    A parser that genuinely needs a different grid shape (not just extra
+    detail fields) can skip this helper and build ``column_defs`` by hand —
+    nothing requires using it.
+    """
+    return [
+        {"field": "timestamp", "headerName": "Timestamp", "width": 190, "pinned": "left", "renderer": "timestamp"},
+        {"field": "raw",       "headerName": "Event",      "flex": 1, "tooltipField": "raw"},
+    ]

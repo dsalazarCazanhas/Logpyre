@@ -1,7 +1,8 @@
 # ── Project-specific ──────────────────────────────────────────────────────────
 
-# Png files
+# Png files (except intentional documentation assets)
 *.png
+!docs/images/*.png
 
 # Playwright MCP trace output (local visual verification, not part of the repo)
 .playwright-mcp/

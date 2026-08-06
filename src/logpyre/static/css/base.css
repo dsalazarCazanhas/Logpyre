@@ -1,13 +1,138 @@
 /* Global styles for the shared base layout */
 
+/* Theme tokens. :root holds the light (default) palette; [data-theme="dark"]
+   overrides only the tokens that actually need a different value for
+   contrast against a dark surface. Colors that live on the navbar-inverse
+   strip (always dark, regardless of page theme) or represent a fixed
+   "text on a colored badge" pairing stay constant in both themes on purpose. */
+:root {
+  --bg: #ffffff;
+  --surface: #f9f9f9;
+  --surface-alt: #f0f4f8;
+  --surface-alt-hover: #e0e5eb;
+  --surface-elevated: #ffffff;
+  --surface-hover: #f5f5f5;
+
+  --border: #e8e8e8;
+  --border-strong: #cccccc;
+  --border-hover: #999999;
+
+  --text: #333333;
+  --text-secondary: #555555;
+  --text-muted: #888888;
+  --text-heading: #444444;
+  --text-strong: #000000;
+  --text-inverse: #ffffff;
+
+  --accent: #337ab7;
+  --accent-hover: #286090;
+  --accent-soft: #f4f8ff;
+
+  --info: #31708f;
+  --success: #5cb85c;
+  --success-strong: #3c763d;
+  --warn: #f59e0b;
+  --warn-text: #1a1a1a;
+  --danger: #d9534f;
+  --danger-strong: #c9302c;
+  --danger-soft: #fbeaea;
+
+  --code-bg: #2b2b2b;
+  --code-text: #e8e8e8;
+
+  /* navbar-inverse is Bootstrap's own always-dark strip, unaffected by
+     [data-theme] — these mirror its fixed link palette. */
+  --navbar-link: #9d9d9d;
+
+  --status-checking: #888888;
+  --status-checking-text: #aaaaaa;
+}
+
+[data-theme="dark"] {
+  --bg: #15171b;
+  --surface: #1c1f24;
+  --surface-alt: #21252b;
+  --surface-alt-hover: #333944;
+  --surface-elevated: #20232a;
+  --surface-hover: #2a2e35;
+
+  --border: #33373e;
+  --border-strong: #454a52;
+  --border-hover: #5a6069;
+
+  --text: #d7dadd;
+  --text-secondary: #aeb2b8;
+  --text-heading: #c6c9ce;
+  --text-strong: #f5f5f7;
+
+  --accent: #5b9bd5;
+  --accent-hover: #7fb8e8;
+  --accent-soft: rgba(91, 155, 213, 0.15);
+
+  --danger-strong: #ff6b6b;
+  --danger-soft: rgba(255, 107, 107, 0.15);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* Flask-Bootstrap renders form controls, buttons, alerts and tables with
+   Bootstrap 3's own hardcoded colors — they don't inherit the tokens above
+   for free, so give the dark theme explicit overrides for the components
+   this app actually uses (upload page, error-list table). */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] select.form-control {
+  background-color: var(--surface-elevated);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+[data-theme="dark"] .form-control:focus {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+[data-theme="dark"] .btn-default {
+  background-color: var(--surface-elevated);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+[data-theme="dark"] .btn-default:hover {
+  background-color: var(--surface-hover);
+}
+[data-theme="dark"] .help-block,
+[data-theme="dark"] .text-muted {
+  color: var(--text-muted);
+}
+[data-theme="dark"] .page-header {
+  border-color: var(--border);
+}
+[data-theme="dark"] .alert-warning {
+  background-color: var(--surface-alt);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+[data-theme="dark"] .table {
+  color: var(--text);
+}
+[data-theme="dark"] .table-bordered,
+[data-theme="dark"] .table-bordered > thead > tr > th,
+[data-theme="dark"] .table-bordered > tbody > tr > td {
+  border-color: var(--border);
+}
+[data-theme="dark"] code {
+  background-color: var(--code-bg);
+  color: var(--code-text);
+}
+
 /* Ingest success toast */
 .logpyre-toast {
     position: fixed;
     bottom: 28px;
     right: 28px;
     z-index: 10000;
-    background: #3c763d;
-    color: #fff;
+    background: var(--success-strong);
+    color: var(--text-inverse);
     padding: 14px 20px 8px;
     border-radius: 5px;
     box-shadow: 0 4px 18px rgba(0,0,0,0.35);
@@ -39,7 +164,7 @@
 .logpyre-toast-close {
     background: none;
     border: none;
-    color: #fff;
+    color: var(--text-inverse);
     font-size: 1.2em;
     line-height: 1;
     margin-left: auto;
@@ -78,12 +203,33 @@
     flex-shrink: 0;
     transition: background-color 0.3s;
 }
-.es-status--checking .es-dot  { background: #888; }
-.es-status--checking .es-label { color: #aaa; }
-.es-status--alive .es-dot     { background: #5cb85c; box-shadow: 0 0 5px #5cb85c99; }
-.es-status--alive .es-label   { color: #5cb85c; }
-.es-status--down .es-dot      { background: #d9534f; box-shadow: 0 0 5px #d9534f99; }
-.es-status--down .es-label    { color: #d9534f; }
+.es-status--checking .es-dot  { background: var(--status-checking); }
+.es-status--checking .es-label { color: var(--status-checking-text); }
+.es-status--alive .es-dot     { background: var(--success); box-shadow: 0 0 5px #5cb85c99; }
+.es-status--alive .es-label   { color: var(--success); }
+.es-status--down .es-dot      { background: var(--danger); box-shadow: 0 0 5px #d9534f99; }
+.es-status--down .es-label    { color: var(--danger); }
+
+/* Dark-mode toggle button — sits in the always-dark navbar-inverse strip,
+   so it mirrors Bootstrap's own fixed navbar-inverse link palette instead
+   of the page's [data-theme] tokens. */
+.theme-toggle {
+    background: none;
+    border: none;
+    height: 50px;
+    padding: 0 15px;
+    display: inline-flex;
+    align-items: center;
+    color: var(--navbar-link);
+    cursor: pointer;
+}
+.theme-toggle:hover,
+.theme-toggle:focus {
+    color: var(--text-inverse);
+}
+.theme-toggle svg {
+    display: block;
+}
 
 .logpyre-float-alert {
     position: fixed;
@@ -109,7 +255,7 @@
     justify-content: center;
     flex-direction: column;
     gap: 18px;
-    color: #fff;
+    color: var(--text-inverse);
     font-size: 1.1em;
     text-align: center;
 }
@@ -121,7 +267,7 @@
     height: 56px;
     border-radius: 50%;
     border: 6px solid rgba(255, 255, 255, 0.25);
-    border-top-color: #fff;
+    border-top-color: var(--text-inverse);
     animation: spin 0.8s linear infinite;
 }
 .upload-overlay-help {

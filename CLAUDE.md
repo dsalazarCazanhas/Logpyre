@@ -18,7 +18,7 @@ poetry run pytest -v
 poetry run pytest tests/ingest/parsers/nginx_combined/test_parser.py -v
 
 # Lint
-poetry run ruff check src/
+poetry run ruff check .
 ```
 
 ## Architecture
@@ -60,7 +60,7 @@ A single Blueprint (`web`) in `routes.py`. Key routes:
 
 ### Adding a new parser
 
-1. Create `src/logpyre/ingest/parsers/<format_name>.py` satisfying `BaseParser` (duck typing — no inheritance).
+1. Create `src/logpyre/ingest/parsers/<descriptive_name>.py` satisfying `BaseParser` (duck typing — no inheritance). The filename doesn't need to match `format_name` — that's a class attribute, not a filename (e.g. `combined.py` defines the `nginx_combined` parser).
 2. Register an instance in `_PARSERS` in `parser.py`. Order matters: `can_parse()` is tried top-to-bottom.
 3. If the format has new fields, add a Pydantic model in `models.py` subclassing `BaseLogDocument`.
 4. Add a `column_defs` list on the parser class — this drives the AG Grid columns in the frontend.

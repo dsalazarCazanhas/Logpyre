@@ -3,7 +3,13 @@
 {% block head %}
 {{ super() }}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
-<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@36.0.2/dist/ag-grid-community.min.js"
+        integrity="sha384-4P7t+1WzUk9bbgIHEl6gh2Pg3BIKScCBPmHKP61ggNasjwYnpFzttAAv1uKoYiHh"
+        crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"
+        integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ"
+        crossorigin="anonymous"></script>
+<script src="{{ url_for('static', filename='js/shared.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/index.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/datetime.js') }}" defer></script>
 {% endblock %}
@@ -12,16 +18,9 @@
 {% block content %}
 {{ self.flash_toast() }}
 
-{# Full-page blocking overlay shown while ingestion is in progress #}
-<div id="upload-overlay">
-    <div class="upload-spinner"></div>
-    <div>
-        <strong>Ingesting file&hellip;</strong><br>
-        <small class="upload-overlay-help">Please wait, do not close or refresh this tab.</small>
-    </div>
-</div>
+{% include "_upload_overlay.html" %}
 
-<div id="page-shell" data-api-projects-url="{{ url_for('web.api_projects') }}" data-api-search-url="{{ url_for('web.api_search') }}">
+<div id="page-shell" data-api-projects-url="{{ url_for('web.api_projects') }}" data-api-search-url="{{ url_for('web.api_search') }}" data-api-analytics-url="{{ url_for('web.api_analytics') }}">
 
   <div id="page-header">
     <span id="project-label" class="project-label">All projects</span>
@@ -46,7 +45,14 @@
 
   <div id="filter-tags"></div>
 
-  <div id="upload-modal" aria-hidden="true">
+  <div id="activity-panel" class="hidden">
+    <div id="activity-chart-wrap">
+      <canvas id="activity-chart" height="160"></canvas>
+    </div>
+    <div id="activity-facets"></div>
+  </div>
+
+  <div id="upload-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Upload log file">
     <div class="upload-modal-card">
       <button type="button" class="upload-modal-close" aria-label="Close modal">&times;</button>
       <div class="upload-modal-body">
@@ -54,7 +60,7 @@
           {{ upload_form.hidden_tag() }}
           <div id="upload-dropzone" class="upload-dropzone" data-dropzone="true">
             {{ upload_form.log_file(id='log_file', class='hidden-file-input') }}
-            <img src="{{ url_for('static', filename='favicon.svg') }}" alt="Logpyre icon" class="upload-icon">
+            <img src="{{ url_for('static', filename='img/upload-icon.svg') }}" alt="Upload icon" class="upload-icon">
             <h2>Logpyre</h2>
             <p class="upload-hint">Drop a .log or .txt file here, or click below to select one.</p>
             <button type="button" class="btn btn-default btn-sm" id="upload-select-btn">Select file</button>
@@ -84,10 +90,10 @@
     </div>
   </div>
 
-  <div id="delete-project-modal" aria-hidden="true">
+  <div id="delete-project-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="delete-project-title">
     <div class="confirm-modal-card">
       <button type="button" class="confirm-modal-close" aria-label="Close modal">&times;</button>
-      <h3 class="confirm-modal-title">Delete project</h3>
+      <h3 class="confirm-modal-title" id="delete-project-title">Delete project</h3>
       <p class="confirm-modal-body-text">
         This permanently deletes <strong id="delete-project-name"></strong> and all of its logs
         from Elasticsearch. This action cannot be undone.
@@ -105,7 +111,7 @@
   </div>
 
   <div id="content-area">
-    <div id="log-grid" class="ag-theme-alpine"></div>
+    <div id="log-grid"></div>
 
     <div id="empty-state">
       <img src="{{ url_for('static', filename='img/empty-state.svg') }}"
@@ -118,7 +124,7 @@
     <div id="detail-panel">
       <div id="detail-header">
         <span id="detail-title">Event detail</span>
-        <button id="detail-close" title="Close">&times;</button>
+        <button id="detail-close" title="Close" aria-label="Close">&times;</button>
       </div>
       <div id="detail-body"></div>
     </div>
