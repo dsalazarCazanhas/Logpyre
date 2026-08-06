@@ -38,10 +38,18 @@ window.Logpyre = window.Logpyre || {};
         btn.setAttribute("title", label);
     }
 
+    // Canvas-drawn widgets (Chart.js) can't react to the [data-theme]
+    // attribute on their own like CSS-based elements do — this lets index.js
+    // re-color the activity chart's axes without theme.js knowing it exists.
+    function notifyThemeChange(theme) {
+        document.dispatchEvent(new CustomEvent("logpyre:theme-change", { detail: { theme: theme } }));
+    }
+
     function toggleTheme() {
         var next = currentTheme() === "dark" ? "light" : "dark";
         localStorage.setItem(STORAGE_KEY, next);
         applyTheme(next);
+        notifyThemeChange(next);
     }
 
     function initTheme() {

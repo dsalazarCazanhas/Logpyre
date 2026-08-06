@@ -84,7 +84,11 @@
             };
 
             if (d.field === "raw") {
-                col.cellStyle = { fontFamily: "monospace", fontSize: "11px", color: "#333", lineHeight: "1.5", padding: "6px 4px" };
+                // No `color` here on purpose — the grid's own Theming API
+                // (gridTheme's foregroundColor, light/dark) already colors
+                // cell text correctly; a hardcoded value here would fight it
+                // and stay wrong in whichever theme it wasn't written for.
+                col.cellStyle = { fontFamily: "monospace", fontSize: "11px", lineHeight: "1.5", padding: "6px 4px" };
                 // overflow-wrap (not word-break: break-all) — only breaks a
                 // word mid-character when it wouldn't fit on its own line,
                 // instead of breaking eagerly wherever a line gets tight.
@@ -452,6 +456,22 @@
         });
     }
 
+    // Chart.js draws to canvas — it has no way to pick up CSS custom
+    // properties on its own, so axis label color must be read from the
+    // active theme and re-applied by hand on every toggle (unlike the grid,
+    // which reacts to data-ag-theme-mode by itself).
+    function chartAxisColor() {
+        return getComputedStyle(document.documentElement).getPropertyValue("--text-secondary").trim() || "#666666";
+    }
+
+    function applyActivityChartTheme() {
+        if (!activityChart) return;
+        const color = chartAxisColor();
+        activityChart.options.scales.x.ticks.color = color;
+        activityChart.options.scales.y.ticks.color = color;
+        activityChart.update();
+    }
+
     function renderActivityChart(dailyCounts) {
         const labels = dailyCounts.map(d => d.date);
         const counts = dailyCounts.map(d => d.count);
@@ -463,6 +483,7 @@
             return;
         }
 
+        const axisColor = chartAxisColor();
         activityChart = new Chart(activityCanvas, {
             type: "bar",
             data: { labels, datasets: [{ data: counts, backgroundColor: "#f59e0b" }] },
@@ -471,8 +492,8 @@
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false } },
                 scales: {
-                    x: { grid: { display: false }, ticks: { maxRotation: 0 } },
-                    y: { beginAtZero: true, ticks: { precision: 0 } },
+                    x: { grid: { display: false }, ticks: { maxRotation: 0, color: axisColor } },
+                    y: { beginAtZero: true, ticks: { precision: 0, color: axisColor } },
                 },
                 onClick: (evt, elements) => {
                     if (!elements.length) return;
@@ -481,6 +502,8 @@
             },
         });
     }
+
+    document.addEventListener("logpyre:theme-change", applyActivityChartTheme);
 
     function loadAnalytics() {
         if (!apiAnalyticsUrl || !esIsAlive) return;
