@@ -31,20 +31,41 @@ Open `http://127.0.0.1:5000`, upload a log file, pick its format, search.
 
 ## Docker
 
-- **`Dockerfile`** — multi-stage production build: dependencies resolve in a
-  builder stage, the runtime stage is a slim non-root image running Gunicorn
-  (`GUNICORN_WORKERS`, default: 2).
-- **`docker/compose.yml`** — local integration stack: builds that same
-  Dockerfile alongside a single-node Elasticsearch.
+`Dockerfile` is a multi-stage production build: dependencies resolve in a
+builder stage, the runtime stage is a slim non-root image running Gunicorn
+(`GUNICORN_WORKERS`, default: 2). Published to
+[Docker Hub](https://hub.docker.com/r/dsalazarcazanhas/logpyre) on every
+release.
 
 ```bash
-cp docker/docker.env docker/.env   # edit if needed
-docker compose -f docker/compose.yml up --build
+docker run -p 5000:5000 --env-file .env dsalazarcazanhas/logpyre:latest
+```
+
+Building from a local checkout instead of the published image (e.g. while
+developing a Dockerfile change):
+
+```bash
+docker build -t logpyre:dev .
+docker run -p 5000:5000 --env-file .env logpyre:dev
+```
+
+### Docker Compose
+
+`docker/compose.yml` is a quickstart stack: the published image alongside a
+single-node Elasticsearch, both using the **same `.env`** described in
+[Quickstart](#quickstart) — see `example.env` for the full variable list.
+One value differs by context: `ELASTIC_HOST` should point at `127.0.0.1` when
+you run Elasticsearch yourself, or at `elasticsearch` (the service name
+below) when it's this compose stack doing it.
+
+```bash
+cp example.env .env      # once — edit credentials
+docker compose --env-file .env -f docker/compose.yml up
 ```
 
 For production, enable TLS verification: extract the Elasticsearch CA
 fingerprint after the first start, then set `ELASTIC_CERT_FINGERPRINT` and
-`APP_ENV=production` in `docker/.env`.
+`APP_ENV=production` in `.env`.
 
 ```bash
 docker cp elasticsearch:/usr/share/elasticsearch/config/certs/http_ca.crt .
