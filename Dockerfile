@@ -7,7 +7,12 @@ RUN pip install --no-cache-dir "poetry==2.2.1" && \
     poetry config virtualenvs.in-project true
 
 COPY pyproject.toml poetry.lock ./
+# poetry seeds every new venv with whatever pip/setuptools/wheel it bundles
+# internally — never pinned or updated by poetry.lock — so known CVEs in
+# those (e.g. CVE-2025-47273, CVE-2026-59890 in setuptools; pip's vendored
+# msgpack, GHSA-6v7p-g79w-8964) ride along silently unless upgraded here.
 RUN poetry install --only main --no-root --no-interaction --no-ansi && \
+    .venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel && \
     .venv/bin/pip install --no-cache-dir "gunicorn==25.3.0"
 
 # ── Stage 2: runtime ────────────────────────────────────────────────────────────
@@ -21,6 +26,12 @@ RUN addgroup --system logpyre && \
 
 # Copy the virtualenv built in the previous stage (includes gunicorn)
 COPY --from=builder /build/.venv /app/.venv
+
+# pip is a build-time tool only — gunicorn runs the app directly, nothing at
+# runtime ever imports pip. Leaving it in ships its vendored dependencies
+# (e.g. msgpack, GHSA-6v7p-g79w-8964) as pure unused attack surface, so it's
+# self-uninstalled here rather than kept "just in case".
+RUN /app/.venv/bin/python -m pip uninstall -y pip
 
 # Copy only the application source — no tests, no dev tooling
 COPY src/ ./src/
