@@ -1,12 +1,24 @@
-# Logpyre — local integration-test stack, NOT a production deployment.
+# Logpyre — quickstart stack using the published, scanned Docker Hub image.
 #
-# Brings up Elasticsearch and builds the Logpyre web app together so the
-# real Dockerfile can be exercised end to end. Elasticsearch is also exposed
-# on the host (9200) for local debugging.
+# Brings up Elasticsearch alongside the official Logpyre image. Elasticsearch
+# is also exposed on the host (9200) for local debugging.
 #
-# Usage:
-#   cp docker/docker.env docker/.env      # once — edit credentials
-#   docker compose -f docker/compose.yml up --build
+# To build and run from a local source checkout instead of the published
+# image (e.g. while developing a Dockerfile change), use `docker build` /
+# `docker run` directly — see the "Docker" section in the README.
+#
+# Usage (run from the repo root):
+#   cp example.env .env      # once — edit credentials
+#   docker compose --env-file .env -f docker/compose.yml up
+#
+# --env-file is required here: without it, Compose won't find the repo-root
+# .env for ${ELASTIC_PASSWORD} below (its env_file: search path and its
+# ${...} substitution search path are resolved differently).
+#
+# Elasticsearch only applies ELASTIC_PASSWORD on its first boot with a fresh
+# volume — changing it in .env later has no effect on an existing one. To
+# pick up a new password (or just reset), wipe the volume too:
+#   docker compose -f docker/compose.yml down -v
 #
 # The Logpyre UI is then available at http://localhost:5000
 
@@ -36,16 +48,12 @@ services:
       retries: 5
 
   logpyre:
-    build:
-      context: ../
-      dockerfile: Dockerfile
+    image: dsalazarcazanhas/logpyre:latest
     container_name: logpyre
     env_file:
-      # .env is the gitignored file with your real credentials (see Usage
-      # above). docker.env is only the committed placeholder template — it
-      # must never be the default here, or `docker compose up` silently
-      # starts with "changeme" instead of whatever you put in docker/.env.
-      - .env
+      # ../.env is the repo-root .env (gitignored, your real credentials —
+      # see Usage above and example.env for the full list of variables).
+      - ../.env
     ports:
       - "5000:5000"
     depends_on:
